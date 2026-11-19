@@ -1,0 +1,11 @@
+[project]
+name = "spatial-harness-bench"
+version = "0.1.0"
+description = "A benchmark for spatial reasoning in text-only language models"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

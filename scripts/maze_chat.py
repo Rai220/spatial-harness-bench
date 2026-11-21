@@ -2,13 +2,17 @@
 
 import argparse
 from collections import deque
+from http.client import IncompleteRead
 import json
 import os
 from pathlib import Path
 import sys
-import time
 import urllib.error
 import urllib.request
+
+# This adapter can run by absolute path from a temporary room workspace.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from spatial_harness_bench.gateway import GatewayError, TEMPFAIL, retry
 
 
 def file_tool(name, description, properties):
@@ -52,17 +56,17 @@ def complete(endpoint, key, payload):
     if key:
         headers["Authorization"] = "Bearer " + key
     request = urllib.request.Request(endpoint, data=json.dumps(payload).encode(), headers=headers)
-    for attempt in range(4):
+    def send():
         try:
-            with urllib.request.urlopen(request, timeout=180) as response:
+            with urllib.request.urlopen(request) as response:
                 return json.load(response)
         except urllib.error.HTTPError as exc:
-            if exc.code not in (408, 429, 500, 502, 503, 504) or attempt == 3:
-                raise RuntimeError(f"HTTP {exc.code}: {exc.read(500).decode(errors='replace')}") from exc
-        except (TimeoutError, urllib.error.URLError):
-            if attempt == 3:
-                raise
-        time.sleep(2**attempt)
+            exc.close()
+            raise GatewayError(f"HTTP {exc.code}") from exc
+        except (TimeoutError, ConnectionError, IncompleteRead, urllib.error.URLError) as exc:
+            raise GatewayError("Connection to inference gateway failed") from exc
+
+    return retry(send)
 
 
 def main():
@@ -120,4 +124,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except GatewayError as exc:
+        print(json.dumps({"type": "gateway_error", "exhausted": True, "attempts": exc.attempts}), flush=True)
+        sys.exit(TEMPFAIL)

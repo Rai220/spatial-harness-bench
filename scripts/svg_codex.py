@@ -8,6 +8,9 @@ import subprocess
 import sys
 from tempfile import TemporaryDirectory
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from spatial_harness_bench.gateway import TEMPFAIL, gateway_failure
+
 STRING = {"type": "string"}
 
 
@@ -66,6 +69,8 @@ def main():
         for path in images:
             command.extend(["-i", str(path)])
         result = subprocess.run([*command, "-"], cwd=work, input=prompt, capture_output=True, text=True)
+        if gateway_failure(result.returncode, result.stderr, result.stdout):
+            sys.exit(TEMPFAIL)
         if result.returncode:
             raise RuntimeError(f"Codex ({stage}): {result.stderr[-1600:]} {result.stdout[-800:]}")
         for line in result.stdout.splitlines():

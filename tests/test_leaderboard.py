@@ -3,7 +3,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
-from scripts.render_leaderboard import ranking
+from scripts.render_leaderboard import RETRY_COMPATIBLE_PACKAGES, ranking
 from scripts.score_leaderboard import SCORING_VERSION, overall_score
 
 
@@ -58,6 +58,18 @@ class OverallScoreTests(unittest.TestCase):
                 paths.append(path)
             self.assertEqual([(place, run["display_model"]) for place, run in ranking(paths)],
                              [(1, "A"), (1, "B"), (3, "C")])
+            old, new = sorted(RETRY_COMPATIBLE_PACKAGES)
+            for index, path in enumerate(paths):
+                row = json.loads(path.read_text())
+                row["benchmark_package_sha256"] = old if index == 0 else new
+                path.write_text(json.dumps(row))
+            self.assertEqual(len(ranking(paths)), 3)
+            row["benchmark_package_sha256"] = "unknown"
+            paths[-1].write_text(json.dumps(row))
+            with self.assertRaises(ValueError):
+                ranking(paths)
+            row["benchmark_package_sha256"] = new
+            paths[-1].write_text(json.dumps(row))
             bad = json.loads(paths[0].read_text())
             bad["maze_suite_seed"] = "3"
             paths[0].write_text(json.dumps(bad))

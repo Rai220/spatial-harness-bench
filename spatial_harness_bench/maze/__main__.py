@@ -7,7 +7,9 @@ import secrets
 import shutil
 import subprocess
 import sys
-from tempfile import TemporaryDirectory
+from tempfile import TemporaryDirectory, TemporaryFile
+
+from ..gateway import GatewayError, gateway_failure, relay, retry, tail
 
 from .game import MAX_SIZE, MIN_SIZE, Maze, Walk, instructions
 from .levels import LEVELS, LOOPS, VERSION, explore_cost, generate_level
@@ -15,20 +17,40 @@ from .levels import LEVELS, LOOPS, VERSION, explore_cost, generate_level
 
 def run(maze: Maze, seed: int, limit: int | None, command: list[str], output: Path, *,
         task: str = "02-maze", explore: int | None = None, loops: float = 0.0) -> dict:
+    output.mkdir(parents=True, exist_ok=False)
+
+    def clear_notes():
+        notes = output / "notes"
+        if notes.exists():
+            shutil.rmtree(notes)
+
+    try:
+        return retry(lambda: _walk_once(maze, seed, limit, command, output, task, explore, loops),
+                     reset=clear_notes)
+    except GatewayError as exc:
+        path = output / "result.json"
+        result = json.loads(path.read_text())
+        result["gateway_attempts"] = exc.attempts
+        path.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n")
+        return result
+
+
+def _walk_once(maze, seed, limit, command, output, task, explore, loops):
     if limit is None:
         limit = 2 * maze.size**2
     walk = Walk(maze, limit)
     shortest = maze.shortest_distance()
-    output.mkdir(parents=True, exist_ok=False)
     visited = {walk.cell}
     moves = 0
     feedback = ""
     error = None
-    with TemporaryDirectory(prefix="maze-notes-") as work:
+    gateway_error = None
+    agent = None
+    with TemporaryDirectory(prefix="maze-notes-") as work, TemporaryFile() as diagnostics:
         try:
-            with (output / "steps.jsonl").open("x", encoding="utf-8") as trace, subprocess.Popen(
+            with (output / "steps.jsonl").open("w", encoding="utf-8") as trace, subprocess.Popen(
                 command, cwd=work, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                text=True, encoding="utf-8", bufsize=1,
+                text=True, encoding="utf-8", bufsize=1, stderr=diagnostics,
             ) as agent:
                 try:
                     while walk.status == "running":
@@ -39,8 +61,15 @@ def run(maze: Maze, seed: int, limit: int | None, command: list[str], output: Pa
                         print(json.dumps(room, ensure_ascii=False), file=agent.stdin, flush=True)
                         line = agent.stdout.readline()
                         if not line:
+                            agent.wait(timeout=2)
                             raise RuntimeError("Адаптер завершился до следующего решения.")
                         decision = json.loads(line)
+                        if isinstance(decision, dict) and decision.get("type") == "gateway_error":
+                            failure = GatewayError("Inference request rejected or interrupted")
+                            if decision.get("exhausted") is True:
+                                failure.exhausted = True
+                                failure.attempts = int(decision["attempts"])
+                            raise failure
                         action = decision.get("move") if isinstance(decision, dict) else None
                         if not isinstance(action, str):
                             raise ValueError("Поле move должно быть строкой.")
@@ -61,6 +90,13 @@ def run(maze: Maze, seed: int, limit: int | None, command: list[str], output: Pa
                         agent.kill()
         except (OSError, ValueError, KeyError, RuntimeError, subprocess.TimeoutExpired) as exc:
             error = str(exc)
+            diagnostic = tail(diagnostics)
+            if isinstance(exc, GatewayError):
+                gateway_error = exc
+            elif agent is not None and gateway_failure(agent.returncode, diagnostic):
+                gateway_error = GatewayError("Inference request rejected or interrupted")
+        if gateway_error is None:
+            relay(diagnostics, sys.stderr)
         # The adapter can use its private workspace for persistent notes.
         if any(Path(work).iterdir()):
             shutil.copytree(work, output / "notes", symlinks=True)
@@ -77,8 +113,12 @@ def run(maze: Maze, seed: int, limit: int | None, command: list[str], output: Pa
               "explore_ratio": round(walk.attempts / explore, 4) if solved and explore else None}
     if error:
         result["error"] = error
+    if gateway_error:
+        result.update(reason="gateway", score=None, error=str(gateway_error))
     (output / "result.json").write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n")
     (output / "map.txt").write_text(maze.render(), encoding="utf-8")
+    if gateway_error:
+        raise gateway_error
     return result
 
 

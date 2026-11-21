@@ -8,8 +8,9 @@ import subprocess
 import sys
 from tempfile import TemporaryDirectory
 
+from ..gateway import GatewayError, run_stage, save_error
 from .. import objects as assigned_objects
-from .task import DRAW_PROMPT, FILES, RECALL_PROMPT
+from .task import DRAW_PROMPT, FILES, RECALL_PROMPT, TASK_ID
 
 ASSIGNED_INTRO = """Нарисуй в ASCII десять назначенных объектов реального мира так, чтобы потом
 узнать каждый по одному рисунку, когда история разговора и список названий будут скрыты.
@@ -40,8 +41,10 @@ def run(command: list[str], output: Path, *, objects: str = "free", seed: int | 
 
     with TemporaryDirectory(prefix="ascii-draw-") as tmp:
         folder = Path(tmp)
-        subprocess.run(command, cwd=folder, input=prompt.encode(),
-                       stdout=subprocess.DEVNULL, check=True)
+        try:
+            run_stage(command, folder, prompt)
+        except GatewayError as exc:
+            return save_error(output, TASK_ID, 10, "draw", exc, objects=objects, seed=seed)
         if objects == "assigned":
             # The runner owns the reference; the artist's copy is irrelevant.
             reference = ("\n".join(assigned) + "\n").encode()
@@ -57,8 +60,10 @@ def run(command: list[str], output: Path, *, objects: str = "free", seed: int | 
         folder = Path(tmp)
         for name, data, issue in zip(FILES, drawings, checks, strict=True):
             (folder / name).write_bytes(data if issue is None else b"")
-        subprocess.run(command, cwd=folder, input=RECALL_PROMPT.encode(),
-                       stdout=subprocess.DEVNULL, check=True)
+        try:
+            run_stage(command, folder, RECALL_PROMPT)
+        except GatewayError as exc:
+            return save_error(output, TASK_ID, 10, "recall", exc, objects=objects, seed=seed)
         answer = read_output(folder, "desc.txt")
 
     result = score(names, answer, checks)
@@ -97,6 +102,9 @@ def main() -> int:
         result = run(command, args.output, objects=args.objects, seed=args.seed)
     except (OSError, ValueError, subprocess.CalledProcessError) as exc:
         print(exc, file=sys.stderr)
+        return 1
+    if result.get("status") == "error":
+        print("Gateway error. No score.", file=sys.stderr)
         return 1
     print(f"{result['score']}/10  {args.output / 'result.json'}")
     return 0

@@ -9,6 +9,7 @@ import subprocess
 import sys
 from tempfile import TemporaryDirectory
 
+from ..gateway import GatewayError, run_stage, save_error
 from .. import objects as assigned_objects
 from ..answers import same
 from ..ascii_recall.__main__ import read_output
@@ -29,8 +30,7 @@ def session(command: list[str], folder: Path, stage: str, prompt: str, difficult
             count: int = 10) -> None:
     env = {**os.environ, "SVG_RECALL_STAGE": stage, "SVG_RECALL_DIFFICULTY": difficulty,
            "SVG_RECALL_COUNT": str(count)}
-    subprocess.run(command, cwd=folder, env=env,
-                   input=prompt.encode(), stdout=subprocess.DEVNULL, check=True)
+    run_stage(command, folder, prompt, env=env)
 
 
 def run(command: list[str], output: Path, mode: str, *, difficulty: str = "basic",
@@ -64,7 +64,12 @@ def run(command: list[str], output: Path, mode: str, *, difficulty: str = "basic
                                + assigned_objects.draw_prompt(assigned, "svg"))
             if spatial:
                 draw_prompt += "\nТвои рисунки поместят в клетки общего поля для задач на мысленные перемещения."
-            session(command, folder, "draw", draw_prompt, difficulty)
+            try:
+                session(command, folder, "draw", draw_prompt, difficulty)
+            except GatewayError as exc:
+                task = f"{TASK_ID}-{difficulty}" if spatial else TASK_ID
+                return save_error(output, task, 10, "draw", exc, objects=objects, seed=seed,
+                                  modes={mode: exc.report("draw") for mode in modes})
         else:
             folder = drawings_dir
         if assigned:
@@ -118,6 +123,9 @@ def run(command: list[str], output: Path, mode: str, *, difficulty: str = "basic
                 prompt += KITCHEN_RECALL
             try:
                 session(command, folder, current, prompt, difficulty)
+            except GatewayError as exc:
+                report["modes"][current] = exc.report(current)
+                continue
             except subprocess.CalledProcessError as exc:
                 report["modes"][current] = {"status": "error", "score": None, "returncode": exc.returncode}
                 continue

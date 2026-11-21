@@ -2,12 +2,12 @@
 import argparse
 import json
 import os
-import signal
 import subprocess
 import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+from ..gateway import GatewayError, run_stage, save_error
 from .sandbox import query_command
 from .task import PROMPT, TASK_ID, grade, read_submission, setup
 
@@ -24,15 +24,12 @@ def run(command: list[str], output: Path) -> dict:
         probe.unlink()
         setup(folder)
         timed_out = False
-        with subprocess.Popen(command, cwd=folder, stdin=subprocess.PIPE, start_new_session=True) as proc:
-            try:
-                proc.communicate(PROMPT.encode(), timeout=3600)
-            except subprocess.TimeoutExpired:
-                timed_out = True
-                os.killpg(proc.pid, signal.SIGKILL)
-                proc.wait()
-            if not timed_out and proc.returncode:
-                raise subprocess.CalledProcessError(proc.returncode, command)
+        try:
+            run_stage(command, folder, PROMPT, timeout=3600, show_stdout=True)
+        except GatewayError as exc:
+            return save_error(output, TASK_ID, 1, "solve", exc)
+        except subprocess.TimeoutExpired:
+            timed_out = True
         index = read_submission(folder / "clips.rix")
         program = read_submission(folder / "query.py")
     score, message = (0, "Harness timed out after 3600s") if timed_out else grade(index, program)
@@ -57,6 +54,9 @@ def main() -> int:
         result = run(command, args.output)
     except (OSError, subprocess.SubprocessError) as exc:
         print(exc, file=sys.stderr)
+        return 1
+    if result.get("status") == "error":
+        print("Gateway error. No score.", file=sys.stderr)
         return 1
     print(f"{result['score']}/1  {args.output / 'result.json'}")
     return 0

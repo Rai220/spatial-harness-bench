@@ -11,14 +11,25 @@ SITE = "https://krestnikov.org/spatial-harness-bench/"
 METHOD = "Первые четыре задачи дают до 24,75 балла каждая. За аркадную задачу начисляется 1 балл при успехе и 0 при ошибке."
 
 
+# Both package snapshots use identical prompts, graders, limits and data.
+# The second adds retries around failed inference calls.
+RETRY_COMPATIBLE_PACKAGES = frozenset((
+    "35934869039e267edb27b19be0f8d29fd942f774ff598548a0d854accea04918",
+    "58bd7048d11f632ba4535db0339c9552e70e61144931f78d312083786f07911f",
+))
+
+
 def ranking(paths):
     runs = [json.loads(path.read_text(encoding="utf-8")) for path in paths]
     if not runs:
         raise ValueError("В docs/results нет опубликованных прогонов.")
-    for field in ("scoring_version", "benchmark_package_sha256", "datasets", "drawing_seed",
+    for field in ("scoring_version", "datasets", "drawing_seed",
                   "maze_suite_seed", "max_score"):
         if any(run[field] != runs[0][field] for run in runs):
             raise ValueError(f"Несопоставимые условия замера: {field}")
+    packages = {run["benchmark_package_sha256"] for run in runs}
+    if len(packages) > 1 and not packages.issubset(RETRY_COMPATIBLE_PACKAGES):
+        raise ValueError("Несопоставимые версии бенчмарка")
     if runs[0]["max_score"] != 100 or runs[0]["scoring_version"] != "spatial-macro-v2":
         raise ValueError("Неизвестная шкала лидерборда.")
     runs.sort(key=lambda r: (-r["overall_score"], r["display_model"].casefold(), r["date"]))

@@ -70,9 +70,14 @@ def rows(data: dict):
             yield (result.get("task", data["task"]), mode, result["score"], result["max_score"],
                    sum(item["points"] == 1 for item in items), len(items), {})
         return
+    if data.get("reason") == "gateway" and data.get("score") is None:
+        yield data["task"], "-", None, data.get("max_score", 0), 0, 0, {}
+        return
     if "score" in data and "items" in data:
         yield (data["task"], "-", data["score"], data["max_score"],
                sum(item["points"] == 1 for item in data["items"]), len(data["items"]), {})
+    elif data.get("task") == "05-arcade-clips":
+        yield data["task"], "-", data["score"], 1, data["score"], 1, {}
     elif data.get("task", "").startswith("02-maze") and "status" in data:
         solved = data["status"] == "solved"
         if data["status"] == "error":

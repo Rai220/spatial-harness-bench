@@ -12,6 +12,7 @@ import subprocess
 import sys
 from tempfile import TemporaryDirectory
 
+from ..gateway import GatewayError
 from ..ascii_recall.__main__ import read_output
 from ..svg_recall.__main__ import session
 from .task import GENERATED_TASK_ID, TASK_ID, generated_scenes, grade, load_scenes, prompt_for
@@ -50,6 +51,9 @@ def run(command: list[str], output: Path, mode: str, *, scene_set: str = "fixed"
                     (folder / f"{i}.png").write_bytes(scene.picture.png)
             try:
                 session(command, folder, current, prompt, difficulty, count=len(scenes))
+            except GatewayError as exc:
+                report["modes"][current] = exc.report(current)
+                continue
             except subprocess.CalledProcessError as exc:
                 report["modes"][current] = {"status": "error", "score": None, "returncode": exc.returncode}
                 continue

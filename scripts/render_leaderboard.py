@@ -3,6 +3,7 @@
 from html import escape
 import json
 from pathlib import Path
+from urllib.parse import quote
 
 ROOT = Path(__file__).resolve().parents[1]
 DOCS = ROOT / "docs"
@@ -20,7 +21,7 @@ RETRY_COMPATIBLE_PACKAGES = frozenset((
 
 
 def ranking(paths):
-    runs = [json.loads(path.read_text(encoding="utf-8")) for path in paths]
+    runs = [dict(json.loads(path.read_text(encoding="utf-8")), result_id=path.stem) for path in paths]
     if not runs:
         raise ValueError("В docs/results нет опубликованных прогонов.")
     for field in ("scoring_version", "datasets", "drawing_seed",
@@ -61,11 +62,17 @@ def main():
             label += f' · {run["harness"]} {run["harness_version"]} · {run["provider_label"]}'
         value = run["overall_score"]
         score = f"{value:.2f}".replace(".", ",")
-        html_rows.append(f'<tr><td>{place}</td><th scope="row">{escape(label)}</th>'
+        html_label = escape(label)
+        label = label.replace("|", r"\|")
+        answer_dir = Path("answers") / run["result_id"]
+        if (DOCS / answer_dir / "index.html").is_file():
+            href = quote(answer_dir.as_posix()) + "/"
+            html_label += f' <a class="answer-link" href="{href}">Разбор ответов</a>'
+            label += f" · [Разбор ответов]({SITE}{href})"
+        html_rows.append(f'<tr><td>{place}</td><th scope="row">{html_label}</th>'
                          f'<td class="numeric"><span class="score">{score}'
                          f'<meter aria-hidden="true" min="0" max="100" value="{value}"></meter>'
                          f'</span></td></tr>')
-        label = label.replace("|", r"\|")
         markdown.append(f"| {place} | {label} | {score} |")
 
     subtitle = f'<p>{escape(shared)}</p>' if shared else ""

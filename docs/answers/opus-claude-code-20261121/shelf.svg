@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
+  <rect x="0" y="0" width="400" height="300" rx="0" fill="#fff8e8" stroke="none" stroke-width="2.6" />
+  <rect x="24" y="131" width="352" height="10" rx="3" fill="#c58c61" stroke="#263a42" stroke-width="2" />
+  <path d="M39 136 h87 m14 0 h22 m90 0 h84" fill="none" stroke="#e1b489" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+  <rect x="24" y="252" width="352" height="10" rx="3" fill="#c58c61" stroke="#263a42" stroke-width="2" />
+  <path d="M39 257 h87 m14 0 h22 m90 0 h84" fill="none" stroke="#e1b489" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+  <g transform="translate(37 25) scale(1.15)">
+    <path d="M38 17 H61 V35 Q63 43 70 47 Q75 51 74 60 L73 86 Q54 92 27 86 L26 61 Q25 51 33 46 Q40 41 38 35Z" fill="#41667e" stroke="#263a42" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" />
+    <rect x="36" y="12" width="27" height="9" rx="2" fill="#b98a5e" stroke="#263a42" stroke-width="2.6" />
+    <path d="M34 55 L33 76" fill="none" stroke="#9db8c0" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" />
+  </g>
+  <g transform="translate(143 30) scale(1.16)">
+    <path d="M70 43 C96 23 99 65 74 68 L70 61 Q87 57 84 45 Q81 42 75 49Z" fill="#e8b547" stroke="#263a42" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M31 48 Q14 48 9 32 L3 35 Q9 58 28 63 M27 47 Q32 32 54 34 Q73 35 77 51 Q85 75 63 81 Q37 89 24 73 Q19 61 27 47Z" fill="#e8b547" stroke="#263a42" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M34 36 Q49 24 66 35 L68 39 H32Z" fill="#f7da85" stroke="#263a42" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" />
+    <ellipse cx="50" cy="27" rx="4" ry="4" fill="#263a42" stroke="none" stroke-width="2.6" />
+    <path d="M30 54 Q26 61 30 67" fill="none" stroke="#fff0d2" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+  </g>
+  <g transform="translate(270 42) scale(1.08)">
+    <path d="M9 43 Q48 50 91 43 Q85 77 61 79 H40 Q15 74 9 43Z" fill="#aed3c5" stroke="#263a42" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" />
+    <ellipse cx="50" cy="43" rx="41" ry="8" fill="#fff0d2" stroke="#263a42" stroke-width="2.6" />
+    <path d="M18 59 Q47 68 83 59" fill="none" stroke="#3b9394" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+  </g>
+  <g transform="translate(36 151) scale(1.14)">
+    <path d="M50 38 Q35 21 20 40 Q8 57 24 78 Q35 93 50 83 Q68 93 79 70 Q91 46 72 36 Q63 31 50 38Z" fill="#d76546" stroke="#263a42" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M49 39 Q48 25 56 20" fill="none" stroke="#263a42" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M53 31 Q64 14 78 20 Q70 34 53 31Z" fill="#78a07a" stroke="#263a42" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+  </g>
+  <g transform="translate(145 151) scale(1.15)">
+    <rect x="22" y="51" width="54" height="35" rx="3" fill="#bb8056" stroke="#263a42" stroke-width="2.6" />
+    <rect x="28" y="60" width="41" height="17" rx="2" fill="#d5a473" stroke="#263a42" stroke-width="1.7" />
+    <ellipse cx="50" cy="69" rx="2.5" ry="2.5" fill="#263a42" stroke="none" stroke-width="2.6" />
+    <path d="M18 49 H81 V55 H18Z" fill="#35494e" stroke="#263a42" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M23 37 Q50 24 76 37 L68 48 H32Z" fill="#41667e" stroke="#263a42" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M49 31 V20 L73 16 V12" fill="none" stroke="#263a42" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+    <ellipse cx="74" cy="10" rx="7" ry="4" fill="#d76546" stroke="#263a42" stroke-width="1.8" />
+  </g>
+  <g transform="translate(268 152) scale(1.13)">
+    <path d="M66 36 C99 26 100 67 71 70 L68 61 C85 62 89 40 70 45Z" fill="#3b9394" stroke="#263a42" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M16 29 Q43 24 71 30 L67 71 Q65 85 45 86 Q23 85 20 71Z" fill="#3b9394" stroke="#263a42" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" />
+    <ellipse cx="44" cy="30" rx="27" ry="6" fill="#fffaf0" stroke="#263a42" stroke-width="2.6" />
+    <ellipse cx="44" cy="31" rx="21" ry="3" fill="#835a42" stroke="none" stroke-width="2.6" />
+    <path d="M26 44 L28 65" fill="none" stroke="#aed3c5" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+  </g>
+</svg>

@@ -18,6 +18,7 @@ table { width: 100%; border-collapse: collapse; font-size: .95rem; font-variant-
 th, td { padding: 11px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; }
 thead th { font-size: .78rem; font-weight: 600; color: var(--muted); background: #f0f3ee; }
 tbody th { font-weight: 590; }
+.answer-link { display: inline-block; margin-inline-start: .5em; font-size: .85em; font-weight: 450; }
 tbody tr:hover { background: #f1f5f0; }
 thead th:first-child { width: 5em; }
 .numeric { width: 8em; text-align: right; }

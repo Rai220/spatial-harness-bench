@@ -1,0 +1,26 @@
+{
+  "benchmark": "Spatial Harness Bench",
+  "date": "2026-11-21",
+  "model": "anthropic/claude-opus-5.5",
+  "display_model": "Opus 5.5",
+  "harness": "Claude Code",
+  "harness_version": "2.1.278",
+  "provider_label": "OpenRouter",
+  "benchmark_source_commit": "ae904eec5a11cd24fe72395813dbd8963281e80c",
+  "benchmark_package_sha256": "35934869039e267edb27b19be0f8d29fd942f774ff598548a0d854accea04918",
+  "drawing_seed": "3170149012674641413",
+  "maze_suite_seed": "8278864541757570430",
+  "datasets": {
+    "fixed": {
+      "version": 1,
+      "dataset_sha256": "882289c9526a125c60e924a20e8debfe94b7c99c8242e4846cb03fed01a348a0"
+    },
+    "generated": {
+      "version": 1,
+      "dataset_sha256": "3ffb6b5258887c899439dd0b3e0a62bb83de5f57c33c47b8cb3fa682b018545e"
+    }
+  },
+  "scoring_version": "spatial-macro-v2",
+  "overall_score": 92.32,
+  "max_score": 100
+}

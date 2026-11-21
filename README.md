@@ -1,5 +1,7 @@
 # Spatial Harness Bench
 
+[Лидерборд на GitHub Pages](https://krestnikov.org/spatial-harness-bench/) · [Таблица в репозитории](LEADERBOARD.md)
+
 A benchmark in development for measuring spatial reasoning in text-only and multimodal model harnesses.
 
 The project follows the structure of [Harness Bench Fast](https://github.com/ai-forever/harness-bench-fast), with separate task definitions, verifiers, and runners.

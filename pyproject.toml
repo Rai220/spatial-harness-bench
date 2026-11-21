@@ -1,10 +1,19 @@
 [project]
 name = "spatial-harness-bench"
 version = "0.1.0"
-description = "A benchmark for spatial reasoning in text-only language models"
+description = "A benchmark for spatial reasoning in language and multimodal model harnesses"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "pymorphy3>=2.0.6",
+]
+
+[project.optional-dependencies]
+svg = [
+    "cairosvg>=2.7,<3",
+    "defusedxml>=0.7,<1",
+    "pillow>=10",
+]
 
 [build-system]
 requires = ["hatchling"]

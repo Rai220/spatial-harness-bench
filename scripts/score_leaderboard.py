@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from statistics import mean
 
-SCORING_VERSION = "spatial-macro-v1"
+SCORING_VERSION = "spatial-macro-v2"
 
 
 def fraction(result, maximum):
@@ -22,15 +22,14 @@ def overall_score(scores):
     def svg(key, maximum):
         return mean(fraction(scores[key][mode], maximum) for mode in ("code", "vision"))
 
-    tasks = [
+    spatial_tasks = [
         mean(fraction(scores[key], 10) for key in ("01-ascii", "01-ascii-free")),
         fraction(scores["02-maze"], 10),
         mean(svg(f"03-{level}", 10) for level in ("basic", "hard", "expert", "master")),
         mean([svg("04-fixed", 10), svg("04-generated", 24)]),
-        fraction(scores["05-arcade"], 1),
     ]
-    # Round once, after averaging all five equally weighted task families.
-    hundredths = int(mean(tasks) * 10_000 + Fraction(1, 2))
+    points = 99 * mean(spatial_tasks) + fraction(scores["05-arcade"], 1)
+    hundredths = int(points * 100 + Fraction(1, 2))
     return hundredths / 100
 
 

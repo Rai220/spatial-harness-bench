@@ -4,7 +4,7 @@ from tempfile import TemporaryDirectory
 import unittest
 
 from scripts.render_leaderboard import ranking
-from scripts.score_leaderboard import overall_score
+from scripts.score_leaderboard import SCORING_VERSION, overall_score
 
 
 def scores():
@@ -20,12 +20,23 @@ def scores():
 
 
 class OverallScoreTests(unittest.TestCase):
-    def test_equal_task_and_mode_weights(self):
+    def test_arcade_is_one_point_and_scene_modes_have_equal_weight(self):
         data = scores()
         data["05-arcade"]["score"] = 1
+        self.assertEqual(overall_score(data), 1)
         data["04-fixed"]["code"]["score"] = 10
         data["04-generated"]["vision"]["score"] = 24
-        self.assertEqual(overall_score(data), 30)
+        self.assertEqual(overall_score(data), 13.38)
+
+    def test_perfect_spatial_score_leaves_one_point_for_arcade(self):
+        data = scores()
+        for task, result in data.items():
+            if task != "05-arcade":
+                for mode in ([result] if "score" in result else result.values()):
+                    mode["score"] = mode["max_score"]
+        self.assertEqual(overall_score(data), 99)
+        data["05-arcade"]["score"] = 1
+        self.assertEqual(overall_score(data), 100)
 
     def test_incomplete_result_cannot_enter_ranking(self):
         data = scores()
@@ -37,7 +48,7 @@ class OverallScoreTests(unittest.TestCase):
             overall_score(data)
 
     def test_ties_share_rank_and_incompatible_cohorts_are_rejected(self):
-        common = dict(scoring_version="spatial-macro-v1", benchmark_package_sha256="test",
+        common = dict(scoring_version=SCORING_VERSION, benchmark_package_sha256="test",
                       datasets={}, drawing_seed="1", maze_suite_seed="2", max_score=100, date="2026-11-21")
         with TemporaryDirectory() as tmp:
             paths = []

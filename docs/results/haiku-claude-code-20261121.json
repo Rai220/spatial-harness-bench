@@ -20,7 +20,7 @@
       "dataset_sha256": "3ffb6b5258887c899439dd0b3e0a62bb83de5f57c33c47b8cb3fa682b018545e"
     }
   },
-  "scoring_version": "spatial-macro-v1",
-  "overall_score": 58.46,
+  "scoring_version": "spatial-macro-v2",
+  "overall_score": 48.59,
   "max_score": 100
 }

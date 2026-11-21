@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DOCS = ROOT / "docs"
 REPO = "https://github.com/Rai220/spatial-harness-bench"
 SITE = "https://krestnikov.org/spatial-harness-bench/"
-METHOD = "Каждая из пяти задач даёт до 20 баллов. Режимы внутри задачи имеют равный вес."
+METHOD = "Первые четыре задачи дают до 24,75 балла каждая. За аркадную задачу начисляется 1 балл при успехе и 0 при ошибке."
 
 
 def ranking(paths):
@@ -19,7 +19,7 @@ def ranking(paths):
                   "maze_suite_seed", "max_score"):
         if any(run[field] != runs[0][field] for run in runs):
             raise ValueError(f"Несопоставимые условия замера: {field}")
-    if runs[0]["max_score"] != 100 or runs[0]["scoring_version"] != "spatial-macro-v1":
+    if runs[0]["max_score"] != 100 or runs[0]["scoring_version"] != "spatial-macro-v2":
         raise ValueError("Неизвестная шкала лидерборда.")
     runs.sort(key=lambda r: (-r["overall_score"], r["display_model"].casefold(), r["date"]))
     rows = []

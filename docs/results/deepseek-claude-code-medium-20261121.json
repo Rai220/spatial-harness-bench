@@ -1,0 +1,27 @@
+{
+  "benchmark": "Spatial Harness Bench",
+  "date": "2026-11-21",
+  "model": "deepseek/deepseek-v4.1-flash",
+  "display_model": "DeepSeek V4.1 Flash",
+  "harness": "Claude Code",
+  "harness_version": "2.1.278",
+  "provider_label": "OpenRouter",
+  "benchmark_source_commit": "72f8afca4c1fcc60142adb8edd6edda582d8fa02",
+  "benchmark_package_sha256": "9544c64407f7b42e24d327010b291c336b929fa00281c7fc8d12daf57d370820",
+  "drawing_seed": "3170149012674641413",
+  "maze_suite_seed": "8278864541757570430",
+  "run_profile": "medium-v1",
+  "datasets": {
+    "fixed": {
+      "version": 1,
+      "dataset_sha256": "882289c9526a125c60e924a20e8debfe94b7c99c8242e4846cb03fed01a348a0"
+    },
+    "generated": {
+      "version": 1,
+      "dataset_sha256": "3ffb6b5258887c899439dd0b3e0a62bb83de5f57c33c47b8cb3fa682b018545e"
+    }
+  },
+  "scoring_version": "spatial-macro-v2",
+  "overall_score": 87.32,
+  "max_score": 100
+}

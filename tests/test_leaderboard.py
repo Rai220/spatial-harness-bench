@@ -3,7 +3,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
-from scripts.render_leaderboard import RETRY_COMPATIBLE_PACKAGES, ranking
+from scripts.render_leaderboard import RETRY_COMPATIBLE_PACKAGES, ranking, table
 from scripts.score_leaderboard import SCORING_VERSION, overall_score
 
 
@@ -20,6 +20,14 @@ def scores():
 
 
 class OverallScoreTests(unittest.TestCase):
+    def test_harness_is_visible_in_both_tables_even_for_a_single_run(self):
+        run = dict(display_model="Example", harness="Codex", harness_version="1.2.3",
+                   provider_label="OpenAI", result_id="example", overall_score=72.5)
+        html, markdown = table([(1, run)], "Текущие условия")
+        self.assertIn('<th scope="col">Харнес</th>', html)
+        self.assertIn("<td>Codex 1.2.3 · OpenAI</td>", html)
+        self.assertIn("| 1 | Example | Codex 1.2.3 · OpenAI | 72,50 |", markdown)
+
     def test_arcade_is_one_point_and_scene_modes_have_equal_weight(self):
         data = scores()
         data["05-arcade"]["score"] = 1

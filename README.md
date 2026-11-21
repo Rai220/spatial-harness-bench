@@ -26,6 +26,20 @@ The project follows the structure of [Harness Bench Fast](https://github.com/ai-
 
 В сравнении от 21 ноября 2026 года у каждой модели по одному зачётному прогону каждой конфигурации. Все модели получили одинаковые наборы сцен и карты. Для распознавания используется штатный пакетный режим. Если модель исчерпала лимит вывода Claude Code, проверяется файл, который она успела сдать. Пустые ответы получают ноль. При сбое транспорта прогон восстанавливается до публикации. Итог округляется до сотых. При одинаковом опубликованном балле модели делят место.
 
+#### Ограничения прогона
+
+Сессию ограничивает только число шагов, а не время и не бюджет. Раннеры не обрывают харнес по часам. Для Claude Code действуют следующие правила:
+
+- Сессия идёт не дольше 100 ходов агента (`--max-turns`, переменная `SPATIAL_MAX_TURNS`). Если лимит исчерпан, проверяется уже сданный файл.
+- Лимит вывода одного ответа выставлен на максимум, который принимает Claude Code: `CLAUDE_CODE_MAX_OUTPUT_TOKENS=128000`. Большие значения Claude Code урезает до 128 000.
+- В лабиринте свой лимит: 2 решения на комнату. Chat-адаптер `scripts/maze_chat.py` даёт модели до 32 вызовов инструментов на ход и не ограничивает время ответа.
+
+#### Настройка размышлений
+
+Каждая модель работает на среднем уровне размышлений, если модель и харнес позволяют его задать. В Claude Code это `--effort medium`, в Codex — `model_reasoning_effort="medium"`, в Chat Completions — `reasoning_effort: "medium"`. Уровень один для всех задач и режимов прогона.
+
+Если уровень задать нельзя, модель работает с настройкой харнеса по умолчанию. Свой бюджет размышлений вместо уровня не подбирается. В локальном отчёте записываются запрошенный уровень и параметры, которые реально ушли в API. Например, Claude Code 2.1.278 не передаёт `effort` моделям, которых нет в его каталоге, и отправляет им фиксированный бюджет `thinking.budget_tokens` на весь лимит вывода. Такой прогон помечается как выполненный без настройки уровня.
+
 Для обновления таблицы выполните `python3 scripts/score_leaderboard.py ПОЛНЫЙ_ОТЧЁТ docs/results/ИМЯ.json`, затем `python3 scripts/render_leaderboard.py`. Полный отчёт хранится в локальном каталоге прогона.
 
 ### Установка
@@ -194,7 +208,7 @@ uv run python -m spatial_harness_bench.maze --suite --seed 8278864541757570430 \
 ```sh
 uv run --extra svg python -m spatial_harness_bench.svg_recall \
   --objects assigned --seed 1 --mode both --output runs/svg-example -- \
-  python3 "$PWD/scripts/svg_codex.py" --model gpt-6.2-sol --effort low
+  python3 "$PWD/scripts/svg_codex.py" --model gpt-6.2-sol --effort medium
 ```
 
 Встроенный адаптер передаёт код текстом, а PNG прикрепляет к запросу как изображения в порядке 0…9. Он запускает отдельный `codex exec --ephemeral` на каждый этап и проверяет, что модель ответила без вызовов инструментов. Для другого харнеса после `--` укажите свою команду. Она получает промпт в stdin, рабочую папку со входами и переменные `SVG_RECALL_STAGE` (`draw`, `code` или `vision`), `SVG_RECALL_DIFFICULTY` и `SVG_RECALL_COUNT` (число ответов). На каждом этапе адаптер сохраняет файлы из промпта в текущую папку. Адаптер отвечает за новый контекст и доступ к соответствующей модальности. В режиме `code` исключите инструменты рендера и просмотра, а в `vision` передайте PNG через визуальный вход.
@@ -223,7 +237,7 @@ uv run --extra svg python -m spatial_harness_bench.svg_recall \
 uv run --extra svg python -m spatial_harness_bench.svg_recall \
   --difficulty master --seed 42 --mode both \
   --drawings runs/svg-recall-01/codex-sol-6.2/original --output runs/svg-master-example -- \
-  python3 "$PWD/scripts/svg_codex.py" --model gpt-6.2-sol --effort low
+  python3 "$PWD/scripts/svg_codex.py" --model gpt-6.2-sol --effort medium
 ```
 
 Без `--drawings` модель сначала рисует в новой сессии. Без `--seed` раннер выбирает случайный seed и записывает его в `result.json`. Наборы `kitchen` и `assigned` работают на всех уровнях, поэтому один комплект рисунков можно проверить отдельно на узнавание и на перемещения.
@@ -252,7 +266,7 @@ uv run --extra svg python -m spatial_harness_bench.svg_recall \
 ```sh
 uv run --extra svg python -m spatial_harness_bench.svg_scenes \
   --set generated --seed "$PRIVATE_SEED" --mode both --output runs/scenes-gen-example -- \
-  python3 "$PWD/scripts/svg_codex.py" --model gpt-6.2-sol --effort low
+  python3 "$PWD/scripts/svg_codex.py" --model gpt-6.2-sol --effort medium
 ```
 
 ### Набор `fixed`: десять авторских сцен
@@ -277,7 +291,7 @@ uv run --extra svg python -m spatial_harness_bench.svg_scenes \
 ```sh
 uv run --extra svg python -m spatial_harness_bench.svg_scenes \
   --mode both --output runs/fixed-scenes-example -- \
-  python3 "$PWD/scripts/svg_codex.py" --model gpt-6.2-sol --effort low
+  python3 "$PWD/scripts/svg_codex.py" --model gpt-6.2-sol --effort medium
 ```
 
 ### Общее для обоих наборов

@@ -23,16 +23,14 @@ def run(command: list[str], output: Path) -> dict:
         subprocess.run(query_command(probe), env={"PATH": os.defpath}, check=True)
         probe.unlink()
         setup(folder)
-        timed_out = False
+        # No wall-clock limit: the harness bounds its own steps.
         try:
-            run_stage(command, folder, PROMPT, timeout=3600, show_stdout=True)
+            run_stage(command, folder, PROMPT, show_stdout=True)
         except GatewayError as exc:
             return save_error(output, TASK_ID, 1, "solve", exc)
-        except subprocess.TimeoutExpired:
-            timed_out = True
         index = read_submission(folder / "clips.rix")
         program = read_submission(folder / "query.py")
-    score, message = (0, "Harness timed out after 3600s") if timed_out else grade(index, program)
+    score, message = grade(index, program)
     result = {"task": TASK_ID, "score": score, "max_score": 1, "message": message}
     output.mkdir(parents=True, exist_ok=False)
     for name, data in (("clips.rix", index), ("query.py", program)):

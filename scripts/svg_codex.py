@@ -21,7 +21,7 @@ def obj(properties):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model", required=True)
-    parser.add_argument("--effort", default="low")
+    parser.add_argument("--effort", default="medium")
     args = parser.parse_args()
     stage = os.environ["SVG_RECALL_STAGE"]
     difficulty = os.environ.get("SVG_RECALL_DIFFICULTY")

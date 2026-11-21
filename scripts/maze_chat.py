@@ -58,6 +58,7 @@ def complete(endpoint, key, payload):
     request = urllib.request.Request(endpoint, data=json.dumps(payload).encode(), headers=headers)
     def send():
         try:
+            # No read timeout: a long reasoning response is not a transport failure.
             with urllib.request.urlopen(request) as response:
                 return json.load(response)
         except urllib.error.HTTPError as exc:

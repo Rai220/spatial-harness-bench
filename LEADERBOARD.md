@@ -6,7 +6,7 @@
 
 ## Haiku 5.5 × Claude Code
 
-TagMe · Claude Code 2.1.278 · 21.11.2026 · [Данные в JSON](docs/results/haiku-claude-code-20261121.json)
+OpenRouter · Claude Code 2.1.278 · 21.11.2026 · [Данные в JSON](docs/results/haiku-claude-code-20261121.json)
 
 ### Рисунки, лабиринты и реплей
 

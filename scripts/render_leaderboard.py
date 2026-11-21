@@ -69,7 +69,8 @@ def render_run(path):
     scores, levels = data["scores"], data["maze_levels"]
     title = f'{data["display_model"]} × {data["harness"]}'
     day = date.fromisoformat(data["date"]).strftime("%d.%m.%Y")
-    caption = f'{data["provider"]} · {data["harness"]} {data["harness_version"]} · {day}'
+    provider_label = data.get("provider_label") or data["provider"]
+    caption = f'{provider_label} · {data["harness"]} {data["harness_version"]} · {day}'
     run_id = escape(path.stem, quote=True)
     json_path = escape(path.relative_to(DOCS).as_posix(), quote=True)
     html = [f'<article id="{run_id}"><div class="run"><strong>{escape(title)}</strong>'

@@ -4,7 +4,7 @@
   "model": "anthropic/claude-haiku-5.5",
   "harness": "Claude Code",
   "harness_version": "2.1.278",
-  "provider": "TagMe",
+  "provider_label": "OpenRouter",
   "cli_effort_requested": "low",
   "runs_per_configuration": 1,
   "benchmark_package_sha256": "35934869039e267edb27b19be0f8d29fd942f774ff598548a0d854accea04918",

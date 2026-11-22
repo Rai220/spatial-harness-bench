@@ -14,6 +14,29 @@
 <th scope="col">Место</th><th scope="col">Модель</th><th scope="col">Харнес</th>
 <th class="numeric" scope="col">Балл из 100</th>
 </tr></thead><tbody><tr><td>1</td><th scope="row">GPT-6.2 Astra</th><td>Codex 0.171.0 · OpenAI</td><td class="numeric"><span class="score">100,00<meter aria-hidden="true" min="0" max="100" value="100.0"></meter></span></td></tr><tr><td>2</td><th scope="row">Opus 5.5 <a class="answer-link" href="answers/opus-claude-code-20261121/">Разбор ответов</a></th><td>Claude Code 2.1.278 · OpenRouter</td><td class="numeric"><span class="score">92,32<meter aria-hidden="true" min="0" max="100" value="92.32"></meter></span></td></tr><tr><td>3</td><th scope="row">DeepSeek V4.1 Flash</th><td>Claude Code 2.1.278 · OpenRouter</td><td class="numeric"><span class="score">87,32<meter aria-hidden="true" min="0" max="100" value="87.32"></meter></span></td></tr><tr><td>4</td><th scope="row">Astra 6</th><td>Claude Code 2.1.278 · OpenRouter</td><td class="numeric"><span class="score">82,68<meter aria-hidden="true" min="0" max="100" value="82.68"></meter></span></td></tr><tr><td>5</td><th scope="row">Sonnet 5.5</th><td>Claude Code 2.1.278 · OpenRouter</td><td class="numeric"><span class="score">64,50<meter aria-hidden="true" min="0" max="100" value="64.5"></meter></span></td></tr><tr><td>6</td><th scope="row">Haiku 5.5</th><td>Claude Code 2.1.278 · OpenRouter</td><td class="numeric"><span class="score">48,59<meter aria-hidden="true" min="0" max="100" value="48.59"></meter></span></td></tr></tbody></table></div>
-<p>Первые четыре задачи дают до 24,75 балла каждая. За аркадную задачу начисляется 1 балл при успехе и 0 при ошибке. <a href="https://github.com/Rai220/spatial-harness-bench#общая-оценка">Методика</a></p></main>
+<p>Первые четыре задачи дают до 24,75 балла каждая. За аркадную задачу начисляется 1 балл при успехе и 0 при ошибке. <a href="https://github.com/Rai220/spatial-harness-bench#общая-оценка">Методика</a></p>
+<section class="examples" id="examples" aria-labelledby="examples-title">
+<h2 id="examples-title">Примеры задач</h2><p class="examples-intro">В пяти задачах модель работает с рисунками, комнатами лабиринта и записью игры. Попробуйте ответить на вопросы по иллюстрациям.</p>
+<div class="example-grid"><article class="example">
+<img class="example-art" src="examples/ascii.svg" alt="Два рисунка из символов, сделанные GPT-6.2 Astra." loading="lazy">
+<h3>ASCII-рисунки</h3><p>Модель рисует десять предметов, а в новой сессии узнаёт их по силуэтам. Какие два предмета нарисовала Astra?</p>
+<details><summary>Показать ответ</summary><p>Парусник и кактус.</p></details>
+</article><article class="example">
+<img class="example-art" src="examples/maze.svg" alt="Карта 5×5 с флажком и увеличенная стартовая комната. Из неё открыты двери вперёд и вправо." loading="lazy">
+<h3>Лабиринт</h3><p>Модель видит только описание дверей в текущей комнате. Какой первый ход от зелёной точки ведёт к флажку кратчайшим путём?</p>
+<details><summary>Показать ответ</summary><p>Вперёд. Весь путь займёт пять ходов — вперёд, вперёд, влево, вперёд, влево.</p></details>
+</article><article class="example">
+<img class="example-art" src="examples/rotation.svg" alt="Квадрат из четырёх клеток до и после поворота по часовой стрелке." loading="lazy">
+<h3>Повороты на поле SVG</h3><p>Модель следит за своими SVG-рисунками при сдвигах и поворотах. Где окажется парусник после поворота квадрата на 90° по часовой стрелке?</p>
+<details><summary>Показать ответ</summary><p>В верхней правой клетке.</p></details>
+</article><article class="example">
+<img class="example-art" src="answers/opus-claude-code-20261121/shelf.svg" alt="Две кухонные полки с посудой и кофемолкой." loading="lazy">
+<h3>Вопросы по SVG-сценам</h3><p>Готовую сцену модель изучает по коду SVG или по картинке. Что стоит под чайником и слева от бирюзовой кружки?</p>
+<details><summary>Показать ответ</summary><p>Ручная кофемолка.</p></details>
+</article><article class="example">
+<img class="example-art" src="examples/replay.svg" alt="Общий счёт игроков за два клипа по 64 кадра. На границах клипов он равен 0, 6 и 15." loading="lazy">
+<h3>Монтажный индекс</h3><p>Модель строит индекс игровых клипов по 64 кадра. В каком из двух отрезков сильнее вырос общий счёт игроков?</p>
+<details><summary>Показать ответ</summary><p>Во втором, с кадра 64 по 127. Игроки набрали 9 очков, в первом отрезке — 6.</p></details>
+</article></div></section></main>
 <footer><span>Spatial Harness Bench</span><a href="https://github.com/Rai220/spatial-harness-bench/blob/main/LEADERBOARD.md">Таблица в репозитории</a></footer>
 </body></html>

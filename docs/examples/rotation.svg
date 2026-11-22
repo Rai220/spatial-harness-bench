@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 264" width="520" height="264">
+<rect width="520" height="264" fill="#f5f0da"/>
+<defs>
+<g id="boat" stroke="#285050" stroke-width="2.4" stroke-linejoin="round"><path d="M0 6v-26L14 4H0" fill="#f4c06a"/><path d="M-3 3h-13l13-19z" fill="#f6fbef"/><path d="M-21 9h41l-7 8h-26z" fill="#428f83"/></g>
+<g id="cup" stroke="#74472f" stroke-width="2.4" stroke-linejoin="round"><path d="M11-7q16-2 13 9-1 7-12 7" fill="none"/><path d="M-16-10h28v16q-2 9-14 10-13 0-14-10z" fill="#d78a68"/><path d="M-12-6h20" fill="none" stroke="#fae3c5"/></g>
+<g id="pear" stroke="#4b653c" stroke-width="2.2" stroke-linecap="round"><path d="M-3-13q-5 1-7 11-14 17 2 21 13 4 20-3 5-7-2-15-6-6-6-12z" fill="#a8c46b"/><path d="M1-12q0-8 6-11m-6 8q-8-9-13-5 4 8 13 5" fill="#5d8962"/></g>
+</defs>
+<rect x="51" y="57" width="148" height="148" rx="10" fill="#fffdf5" stroke="#b9ba9d" stroke-width="2"/>
+<path d="M125 58v146 M52 131h146" fill="none" stroke="#ccceb3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+<use href="#boat" x="88" y="94"/>
+<use href="#cup" x="162" y="94"/>
+<use href="#pear" x="88" y="168"/>
+<rect x="321" y="57" width="148" height="148" rx="10" fill="#fffdf5" stroke="#b9ba9d" stroke-width="2"/>
+<path d="M395 58v146 M322 131h146" fill="none" stroke="#ccceb3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+<use href="#pear" x="358" y="94"/>
+<use href="#boat" x="432" y="94"/>
+<use href="#cup" x="432" y="168"/>
+<path d="M229 139c4-28 44-33 59-2m-1-13 1 14-14-3" fill="none" stroke="#957539" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+<text x="260" y="169" text-anchor="middle" fill="#725723" font-family="system-ui,sans-serif" font-size="20" font-weight="550">90°</text>
+</svg>

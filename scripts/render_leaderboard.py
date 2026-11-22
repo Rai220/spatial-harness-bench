@@ -10,6 +10,42 @@ DOCS = ROOT / "docs"
 REPO = "https://github.com/Rai220/spatial-harness-bench"
 SITE = "https://krestnikov.org/spatial-harness-bench/"
 METHOD = "Первые четыре задачи дают до 24,75 балла каждая. За аркадную задачу начисляется 1 балл при успехе и 0 при ошибке."
+EXAMPLE_INTRO = "В пяти задачах модель работает с рисунками, комнатами лабиринта и записью игры. Попробуйте ответить на вопросы по иллюстрациям."
+EXAMPLES = (
+    ("ASCII-рисунки", "examples/ascii.svg", "Два рисунка из символов, сделанные GPT-6.2 Astra.",
+     "Модель рисует десять предметов, а в новой сессии узнаёт их по силуэтам. Какие два предмета нарисовала Astra?",
+     "Парусник и кактус."),
+    ("Лабиринт", "examples/maze.svg", "Карта 5×5 с флажком и увеличенная стартовая комната. Из неё открыты двери вперёд и вправо.",
+     "Модель видит только описание дверей в текущей комнате. Какой первый ход от зелёной точки ведёт к флажку кратчайшим путём?",
+     "Вперёд. Весь путь займёт пять ходов — вперёд, вперёд, влево, вперёд, влево."),
+    ("Повороты на поле SVG", "examples/rotation.svg", "Квадрат из четырёх клеток до и после поворота по часовой стрелке.",
+     "Модель следит за своими SVG-рисунками при сдвигах и поворотах. Где окажется парусник после поворота квадрата на 90° по часовой стрелке?",
+     "В верхней правой клетке."),
+    ("Вопросы по SVG-сценам", "answers/opus-claude-code-20261121/shelf.svg", "Две кухонные полки с посудой и кофемолкой.",
+     "Готовую сцену модель изучает по коду SVG или по картинке. Что стоит под чайником и слева от бирюзовой кружки?",
+     "Ручная кофемолка."),
+    ("Монтажный индекс", "examples/replay.svg", "Общий счёт игроков за два клипа по 64 кадра. На границах клипов он равен 0, 6 и 15.",
+     "Модель строит индекс игровых клипов по 64 кадра. В каком из двух отрезков сильнее вырос общий счёт игроков?",
+     "Во втором, с кадра 64 по 127. Игроки набрали 9 очков, в первом отрезке — 6."),
+)
+
+
+def examples():
+    cards = []
+    markdown = ["## Примеры задач", "", EXAMPLE_INTRO, "",
+                "| Иллюстрация | Задача |", "| --- | --- |"]
+    for title, image, alt, question, answer in EXAMPLES:
+        cards.append(f'''<article class="example">
+<img class="example-art" src="{escape(image)}" alt="{escape(alt)}" loading="lazy">
+<h3>{escape(title)}</h3><p>{escape(question)}</p>
+<details><summary>Показать ответ</summary><p>{escape(answer)}</p></details>
+</article>''')
+        markdown.append(f'| <img src="docs/{image}" width="220" alt="{escape(alt)}"> '
+                        f'| **{title}**<br>{question} |')
+    html = f'''<section class="examples" id="examples" aria-labelledby="examples-title">
+<h2 id="examples-title">Примеры задач</h2><p class="examples-intro">{escape(EXAMPLE_INTRO)}</p>
+<div class="example-grid">{''.join(cards)}</div></section>'''
+    return html, markdown
 
 
 def ranking(paths):
@@ -66,7 +102,9 @@ def table(rows):
 def main():
     paths = sorted((DOCS / "results").glob("*.json"))
     html_table, table_lines = table(ranking(paths))
-    markdown = ["# Spatial Harness Bench · Лидерборд", "", f"[GitHub Pages]({SITE})", "", METHOD, "", *table_lines]
+    html_examples, example_lines = examples()
+    markdown = ["# Spatial Harness Bench · Лидерборд", "", f"[GitHub Pages]({SITE})", "", METHOD, "",
+                *table_lines, "", *example_lines]
     page = f'''<!doctype html>
 <html lang="ru">
 <head>
@@ -80,7 +118,8 @@ def main():
 <nav aria-label="Навигация"><a href="{REPO}">GitHub</a></nav></header>
 <main><div class="intro"><h1>Лидерборд</h1></div>
 {html_table}
-<p>{METHOD} <a href="{REPO}#общая-оценка">Методика</a></p></main>
+<p>{METHOD} <a href="{REPO}#общая-оценка">Методика</a></p>
+{html_examples}</main>
 <footer><span>Spatial Harness Bench</span><a href="{REPO}/blob/main/LEADERBOARD.md">Таблица в репозитории</a></footer>
 </body></html>
 '''

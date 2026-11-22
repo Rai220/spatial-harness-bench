@@ -11,6 +11,7 @@ from tempfile import TemporaryDirectory, TemporaryFile
 
 from ..gateway import GatewayError, gateway_failure, relay, retry, tail
 
+from . import MAX_RESPONSES_PER_MOVE
 from .game import MAX_SIZE, MIN_SIZE, Maze, Walk, instructions
 from .levels import LEVELS, LOOPS, VERSION, explore_cost, generate_level
 
@@ -44,6 +45,7 @@ def _walk_once(maze, seed, limit, command, output, task, explore, loops):
     moves = 0
     feedback = ""
     error = None
+    response_limit = False
     gateway_error = None
     agent = None
     with TemporaryDirectory(prefix="maze-notes-") as work, TemporaryFile() as diagnostics:
@@ -64,6 +66,11 @@ def _walk_once(maze, seed, limit, command, output, task, explore, loops):
                             agent.wait(timeout=2)
                             raise RuntimeError("Адаптер завершился до следующего решения.")
                         decision = json.loads(line)
+                        if isinstance(decision, dict) and decision.get("type") == "response_limit":
+                            if decision.get("responses") != MAX_RESPONSES_PER_MOVE:
+                                raise ValueError("Неверное число ответов при исчерпании лимита.")
+                            response_limit = True
+                            break
                         if isinstance(decision, dict) and decision.get("type") == "gateway_error":
                             failure = GatewayError("Inference request rejected or interrupted")
                             if decision.get("exhausted") is True:
@@ -80,8 +87,9 @@ def _walk_once(maze, seed, limit, command, output, task, explore, loops):
                         print(json.dumps({"turn": walk.attempts, "from": before, "to": walk.cell,
                                           "move": action, "observation": room["text"], "result": feedback},
                                          ensure_ascii=False), file=trace, flush=True)
-                    print(json.dumps({"type": "end", "status": walk.status}),
-                          file=agent.stdin, flush=True)
+                    if not response_limit:
+                        print(json.dumps({"type": "end", "status": walk.status}),
+                              file=agent.stdin, flush=True)
                     agent.stdin.close()
                     if agent.wait(timeout=15):
                         raise RuntimeError(f"Адаптер завершился с кодом {agent.returncode}.")
@@ -113,6 +121,9 @@ def _walk_once(maze, seed, limit, command, output, task, explore, loops):
               "explore_ratio": round(walk.attempts / explore, 4) if solved and explore else None}
     if error:
         result["error"] = error
+    elif response_limit:
+        result.update(status="limit", reason="response_limit", responses=MAX_RESPONSES_PER_MOVE,
+                      stalled_turn=walk.attempts + 1)
     if gateway_error:
         result.update(reason="gateway", score=None, error=str(gateway_error))
     (output / "result.json").write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n")

@@ -13,6 +13,7 @@ import urllib.request
 # This adapter can run by absolute path from a temporary room workspace.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from spatial_harness_bench.gateway import GatewayError, TEMPFAIL, retry
+from spatial_harness_bench.maze import MAX_RESPONSES_PER_MOVE
 
 
 def file_tool(name, description, properties):
@@ -89,7 +90,7 @@ def main():
             system = (room["instructions"] + " Ты можешь читать и писать свои файлы инструментами. "
                       "Для хода ответь ровно одним словом: вперёд, назад, вправо или влево.")
         turn = [{"role": "user", "content": f"Ход {room['turn']}. {room['text']}"}]
-        for _ in range(32):
+        for _ in range(MAX_RESPONSES_PER_MOVE):
             messages = [{"role": "system", "content": system}]
             for _, previous in history:
                 messages.extend(previous)
@@ -114,7 +115,8 @@ def main():
             print(json.dumps({"move": answer["content"]}, ensure_ascii=False), flush=True)
             break
         else:
-            raise RuntimeError("Модель не выбрала ход за 32 ответа.")
+            print(json.dumps({"type": "response_limit", "responses": MAX_RESPONSES_PER_MOVE}), flush=True)
+            return
         length = len(json.dumps(turn, ensure_ascii=False))
         history.append((length, turn))
         history_chars += length

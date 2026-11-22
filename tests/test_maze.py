@@ -1,16 +1,23 @@
 import contextlib
+import io
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
 from tempfile import TemporaryDirectory
 import unittest
+from unittest.mock import patch
 
+from scripts import maze_chat
 from scripts.maze_chat import use_file
+from spatial_harness_bench.gateway import GatewayError
+from spatial_harness_bench.maze import MAX_RESPONSES_PER_MOVE
 from spatial_harness_bench.maze.__main__ import run
 from spatial_harness_bench.maze.game import CLOSED, DIRECTIONS, Maze, OPEN, WALL, Walk
 from spatial_harness_bench.maze.levels import (LEVELS, LOOPS, dfs_steps, explore_cost, generate_level,
                                                wall_followers_fail)
+from spatial_harness_bench.maze.pi import MoveResponseLimit, read_move
 
 
 def open_edges(maze):
@@ -18,6 +25,57 @@ def open_edges(maze):
 
 
 class TestMaze(unittest.TestCase):
+    def test_chat_response_limit_emits_a_graded_stop(self):
+        room = json.dumps({"type": "room", "turn": 1, "instructions": "", "text": ""})
+        response = {"choices": [{"message": {"tool_calls": [{"id": "t", "function": {
+            "name": "read_file", "arguments": "{}"}}]}}]}
+        stdout = io.StringIO()
+        with (
+            patch.dict(os.environ, OPENAI_BASE_URL="http://unused"),
+            patch.object(sys, "argv", ["maze_chat", "--model", "test"]),
+            patch.object(sys, "stdin", io.StringIO(room)),
+            contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(io.StringIO()),
+            patch.object(maze_chat, "complete", return_value=response) as send,
+        ):
+            maze_chat.main()
+        self.assertEqual(send.call_count, MAX_RESPONSES_PER_MOVE)
+        self.assertEqual(json.loads(stdout.getvalue()),
+                         {"type": "response_limit", "responses": MAX_RESPONSES_PER_MOVE})
+
+    def test_pi_response_limit_counts_assistant_messages_and_accepts_last_answer(self):
+        tools = {"type": "message_end", "message": {"role": "assistant", "stopReason": "toolUse",
+                                                    "content": [{"type": "toolCall"}] * 5}}
+        tool_result = {"type": "message_end", "message": {"role": "toolResult"}}
+        final = {"role": "assistant", "stopReason": "stop", "content": [{"type": "text", "text": "влево"}]}
+        rounds = [tools, tool_result] * (MAX_RESPONSES_PER_MOVE - 1)
+        complete = [*rounds, {"type": "message_end", "message": final}, {"type": "agent_end"}]
+        events = iter(complete * 2)
+        self.assertEqual(read_move(events), final)
+        self.assertEqual(read_move(events), final)
+        with self.assertRaises(MoveResponseLimit):
+            read_move([*rounds, tools, *complete])
+        failure = {"role": "assistant", "stopReason": "error", "errorMessage": "HTTP 503"}
+        with self.assertRaises(GatewayError):
+            read_move([*rounds, {"type": "message_end", "message": failure}])
+
+    def test_pi_response_limit_completes_map_without_a_fictitious_move(self):
+        mock_pi = (
+            'import json,sys\n'
+            'for line in sys.stdin:\n'
+            ' event={"type":"message_end","message":{"role":"assistant","stopReason":"toolUse",'
+            '"content":[{"type":"toolCall"}]}}\n'
+            ' for _ in range(32): print(json.dumps(event), flush=True)\n'
+        )
+        adapter = [sys.executable, "-m", "spatial_harness_bench.maze.pi",
+                   "--", sys.executable, "-c", mock_pi]
+        with TemporaryDirectory() as tmp:
+            out = Path(tmp) / "run"
+            result = run(Maze.generate(5, 1), 1, None, adapter, out)
+            self.assertEqual((result["status"], result["reason"], result["responses"]),
+                             ("limit", "response_limit", MAX_RESPONSES_PER_MOVE))
+            self.assertEqual((result["stalled_turn"], result["attempts"], result["moves"]), (1, 0, 0))
+            self.assertEqual((out / "steps.jsonl").read_text(), "")
+
     def test_connected_symmetric_mazes_at_every_supported_size(self):
         for size in range(5, 16):
             seed = 7

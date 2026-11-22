@@ -38,8 +38,9 @@ def public_summary(report):
               "provider_label", "benchmark_source_commit", "benchmark_package_sha256",
               "drawing_seed", "maze_suite_seed")
     public = {field: report[field] for field in fields}
-    if "run_profile" in report:
-        public["run_profile"] = report["run_profile"]
+    for optional in ("run_profile", "maze_source_commit"):
+        if optional in report:
+            public[optional] = report[optional]
     public["datasets"] = {
         key: {field: report["datasets"][key][field] for field in ("version", "dataset_sha256")}
         for key in ("fixed", "generated")

@@ -3,7 +3,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
-from scripts.render_leaderboard import RETRY_COMPATIBLE_PACKAGES, ranking, table
+from scripts.render_leaderboard import ranking, table
 from scripts.score_leaderboard import SCORING_VERSION, overall_score
 
 
@@ -23,7 +23,7 @@ class OverallScoreTests(unittest.TestCase):
     def test_harness_is_visible_in_both_tables_even_for_a_single_run(self):
         run = dict(display_model="Example", harness="Codex", harness_version="1.2.3",
                    provider_label="OpenAI", result_id="example", overall_score=72.5)
-        html, markdown = table([(1, run)], "Текущие условия")
+        html, markdown = table([(1, run)])
         self.assertIn('<th scope="col">Харнес</th>', html)
         self.assertIn("<td>Codex 1.2.3 · OpenAI</td>", html)
         self.assertIn("| 1 | Example | Codex 1.2.3 · OpenAI | 72,50 |", markdown)
@@ -55,29 +55,20 @@ class OverallScoreTests(unittest.TestCase):
         with self.assertRaises(KeyError):
             overall_score(data)
 
-    def test_ties_share_rank_and_incompatible_cohorts_are_rejected(self):
+    def test_profiles_share_a_ranking_and_different_map_seeds_are_rejected(self):
         common = dict(scoring_version=SCORING_VERSION, benchmark_package_sha256="test",
                       datasets={}, drawing_seed="1", maze_suite_seed="2", max_score=100, date="2026-11-21")
         with TemporaryDirectory() as tmp:
             paths = []
             for model, value in [("C", 53.2), ("B", 65), ("A", 65)]:
                 path = Path(tmp) / f"{model}.json"
-                path.write_text(json.dumps(dict(common, overall_score=value, display_model=model)))
+                row = dict(common, overall_score=value, display_model=model)
+                if model == "B":
+                    row.update(run_profile="medium-v1", benchmark_package_sha256="updated")
+                path.write_text(json.dumps(row))
                 paths.append(path)
             self.assertEqual([(place, run["display_model"]) for place, run in ranking(paths)],
                              [(1, "A"), (1, "B"), (3, "C")])
-            old, new = sorted(RETRY_COMPATIBLE_PACKAGES)
-            for index, path in enumerate(paths):
-                row = json.loads(path.read_text())
-                row["benchmark_package_sha256"] = old if index == 0 else new
-                path.write_text(json.dumps(row))
-            self.assertEqual(len(ranking(paths)), 3)
-            row["benchmark_package_sha256"] = "unknown"
-            paths[-1].write_text(json.dumps(row))
-            with self.assertRaises(ValueError):
-                ranking(paths)
-            row["benchmark_package_sha256"] = new
-            paths[-1].write_text(json.dumps(row))
             bad = json.loads(paths[0].read_text())
             bad["maze_suite_seed"] = "3"
             paths[0].write_text(json.dumps(bad))

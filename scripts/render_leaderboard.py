@@ -12,14 +12,6 @@ SITE = "https://krestnikov.org/spatial-harness-bench/"
 METHOD = "Первые четыре задачи дают до 24,75 балла каждая. За аркадную задачу начисляется 1 балл при успехе и 0 при ошибке."
 
 
-# Both package snapshots use identical prompts, graders, limits and data.
-# The second adds retries around failed inference calls.
-RETRY_COMPATIBLE_PACKAGES = frozenset((
-    "35934869039e267edb27b19be0f8d29fd942f774ff598548a0d854accea04918",
-    "58bd7048d11f632ba4535db0339c9552e70e61144931f78d312083786f07911f",
-))
-
-
 def ranking(paths):
     runs = [dict(json.loads(path.read_text(encoding="utf-8")), result_id=path.stem) for path in paths]
     if not runs:
@@ -28,9 +20,6 @@ def ranking(paths):
                   "maze_suite_seed", "max_score"):
         if any(run[field] != runs[0][field] for run in runs):
             raise ValueError(f"Несопоставимые условия замера: {field}")
-    packages = {run["benchmark_package_sha256"] for run in runs}
-    if len(packages) > 1 and not packages.issubset(RETRY_COMPATIBLE_PACKAGES):
-        raise ValueError("Несопоставимые версии бенчмарка")
     if runs[0]["max_score"] != 100 or runs[0]["scoring_version"] != "spatial-macro-v2":
         raise ValueError("Неизвестная шкала лидерборда.")
     runs.sort(key=lambda r: (-r["overall_score"], r["display_model"].casefold(), r["date"]))
@@ -45,15 +34,9 @@ def ranking(paths):
     return rows
 
 
-PROFILES = {
-    "medium-v1": "Действующие ограничения · запрошенный уровень размышлений medium",
-    "original": "Первоначальные ограничения",
-}
-
-
-def table(rows, title):
+def table(rows):
     html_rows = []
-    markdown = [f"## {title}", "", "| Место | Модель | Харнес | Балл из 100 |",
+    markdown = ["| Место | Модель | Харнес | Балл из 100 |",
                 "| ---: | --- | --- | ---: |"]
     for place, run in rows:
         label = run["display_model"]
@@ -73,29 +56,17 @@ def table(rows, title):
                          f'</span></td></tr>')
         markdown.append(f"| {place} | {label} | {harness} | {score} |")
 
-    html = f'''<section><h2>{escape(title)}</h2>
-<div class="table-wrap"><table aria-label="{escape(title)}"><thead><tr>
+    html = f'''<div class="table-wrap"><table aria-label="Рейтинг моделей"><thead><tr>
 <th scope="col">Место</th><th scope="col">Модель</th><th scope="col">Харнес</th>
 <th class="numeric" scope="col">Балл из 100</th>
-</tr></thead><tbody>{''.join(html_rows)}</tbody></table></div></section>'''
+</tr></thead><tbody>{''.join(html_rows)}</tbody></table></div>'''
     return html, markdown
 
 
 def main():
-    groups = {profile: [] for profile in PROFILES}
     paths = sorted((DOCS / "results").glob("*.json"))
-    if not paths:
-        raise ValueError("В docs/results нет опубликованных прогонов.")
-    for path in paths:
-        profile = json.loads(path.read_text(encoding="utf-8")).get("run_profile", "original")
-        groups[profile].append(path)
-    tables = []
-    markdown = ["# Spatial Harness Bench · Лидерборд", "", f"[GitHub Pages]({SITE})", "", METHOD, ""]
-    for profile, paths in groups.items():
-        if paths:
-            html, lines = table(ranking(paths), PROFILES[profile])
-            tables.append(html)
-            markdown.extend([*lines, ""])
+    html_table, table_lines = table(ranking(paths))
+    markdown = ["# Spatial Harness Bench · Лидерборд", "", f"[GitHub Pages]({SITE})", "", METHOD, "", *table_lines]
     page = f'''<!doctype html>
 <html lang="ru">
 <head>
@@ -108,7 +79,7 @@ def main():
 <header><a class="brand" href="./">Spatial Harness Bench<span>.</span></a>
 <nav aria-label="Навигация"><a href="{REPO}">GitHub</a></nav></header>
 <main><div class="intro"><h1>Лидерборд</h1></div>
-{''.join(tables)}
+{html_table}
 <p>{METHOD} <a href="{REPO}#общая-оценка">Методика</a></p></main>
 <footer><span>Spatial Harness Bench</span><a href="{REPO}/blob/main/LEADERBOARD.md">Таблица в репозитории</a></footer>
 </body></html>

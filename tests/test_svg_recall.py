@@ -67,7 +67,7 @@ class TestSvgRecall(unittest.TestCase):
         self.assertEqual(picture.issue.kind, "caption")
         self.assertIn("OCR", picture.issue.reason)
 
-    def test_two_modes_one_draw_and_isolation(self):
+    def test_draw_then_read_only_sanitized_svg_in_a_fresh_session(self):
         with TemporaryDirectory() as tmp:
             root = Path(tmp)
             harness = root / "harness.py"
@@ -87,11 +87,8 @@ class TestSvgRecall(unittest.TestCase):
                 "    assert 'title' not in Path('4.svg').read_text() and 'circle' in Path('0.svg').read_text()\n"
                 "    names[0], names[1] = names[1], names[0]\n"
                 "    Path('secret').write_text('first guesses')\n"
-                "else:\n"
-                "    assert files == {f'{i}.png' for i in range(10)}\n"
-                "    assert all(Path(f).read_bytes().startswith(b'\\x89PNG') for f in files)\n"
-                "    assert Path('4.png').read_bytes() == Path('9.png').read_bytes() != Path('0.png').read_bytes()\n"
                 "    if len(sys.argv) > 2: sys.exit(2)\n"
+                "else: raise AssertionError(stage)\n"
                 "Path('desc.txt').write_text('\\n'.join(names) + '\\n')\n",
                 encoding="utf-8",
             )
@@ -99,17 +96,19 @@ class TestSvgRecall(unittest.TestCase):
             cmd = [sys.executable, str(harness), str(log)]
             output = root / "out"
             with patch.object(verifier, "pixel_caption", return_value=None):
-                report = run(cmd, output, "both")
+                report = run(cmd, output)
                 self.assertEqual(report, json.loads((output / "result.json").read_text()))
                 self.assertEqual(report["checks"][4]["status"], "caption")
-                self.assertEqual([r["score"] for r in report["modes"].values()], [5, 7])
+                self.assertEqual([r["score"] for r in report["modes"].values()], [5])
                 self.assertEqual(report["modes"]["code"]["items"][4]["points"], -1)
-                self.assertEqual(report["modes"]["vision"]["items"][9]["status"], "invalid_art")
+                self.assertEqual(report["modes"]["code"]["items"][9]["status"], "invalid_art")
                 calls = [s.split() for s in log.read_text().splitlines()]
-                self.assertEqual([stage for stage, _ in calls], ["draw", "code", "vision"])
-                self.assertEqual(len({folder for _, folder in calls}), 3)
-                failed = run([*cmd, "no-image-support"], root / "failed", "vision")
-                self.assertEqual(failed["modes"], {"vision": {"score": None, "status": "error", "returncode": 2}})
+                self.assertEqual([stage for stage, _ in calls], ["draw", "code"])
+                self.assertEqual(len({folder for _, folder in calls}), 2)
+                failed = run([*cmd, "fail-recognition"], root / "failed")
+                self.assertEqual(failed["modes"], {"code": {"score": None, "status": "error", "returncode": 2}})
             self.assertTrue((output / "original/4.svg").read_bytes().endswith(b'</title></svg>'))
             self.assertTrue((output / "rendered/4.png").is_file())
-            self.assertNotEqual((output / "code/desc.txt").read_text(), (output / "vision/desc.txt").read_text())
+            self.assertFalse((output / "vision").exists())
+            with self.assertRaises(ValueError):
+                run(cmd, root / "retired", "vision")

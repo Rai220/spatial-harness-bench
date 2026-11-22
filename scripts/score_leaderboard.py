@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from statistics import mean
 
-SCORING_VERSION = "spatial-macro-v2"
+SCORING_VERSION = "spatial-macro-v3"
 
 
 def fraction(result, maximum):
@@ -20,7 +20,7 @@ def fraction(result, maximum):
 
 def overall_score(scores):
     def svg(key, maximum):
-        return mean(fraction(scores[key][mode], maximum) for mode in ("code", "vision"))
+        return fraction(scores[key]["code"], maximum)
 
     spatial_tasks = [
         mean(fraction(scores[key], 10) for key in ("01-ascii", "01-ascii-free")),

@@ -1,4 +1,4 @@
-"""Inspect the XML before rendering, then check the same pixels in both modes."""
+"""Inspect SVG source and render it for the caption check."""
 
 from dataclasses import dataclass
 from io import BytesIO

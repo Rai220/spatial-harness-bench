@@ -63,6 +63,8 @@ def rows(data: dict):
         return
     if "modes" in data:
         for mode, result in data["modes"].items():
+            if mode != "code":
+                continue
             if result.get("status") != "complete":
                 yield data["task"], mode, None, 0, 0, 0, {}
                 continue

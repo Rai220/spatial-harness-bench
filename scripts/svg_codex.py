@@ -29,7 +29,8 @@ def main():
     count = int(os.environ.get("SVG_RECALL_COUNT", "10"))
     folder = Path.cwd()
     prompt = sys.stdin.read()
-    images = []
+    if stage not in {"draw", "code"}:
+        parser.error(f"Неизвестный этап: {stage}")
     if stage == "draw":
         field = "drawings"
         item = obj({"name": STRING, "svg": STRING})
@@ -44,15 +45,8 @@ def main():
             field = "answers" if difficulty in {"fixed", "generated"} else "names"
             prompt += f"\nАдаптер запишет desc.txt за тебя. Верни массив {field} в порядке файлов 0…{count - 1}, для пропуска верни пустую строку."
             inputs = [str(i) for i in range(count)]
-        if stage == "code":
-            for stem in inputs:
-                prompt += f"\n\n--- {stem}.svg ---\n" + (folder / f"{stem}.svg").read_text(encoding="utf-8")
-        elif stage == "vision":
-            images = [folder / f"{stem}.png" for stem in inputs]
-            if not spatial:
-                prompt += f"\nКартинки приложены в порядке 0.png … {count - 1}.png, считай с нуля."
-        else:
-            raise ValueError(f"Неизвестный этап: {stage}")
+        for stem in inputs:
+            prompt += f"\n\n--- {stem}.svg ---\n" + (folder / f"{stem}.svg").read_text(encoding="utf-8")
     prompt += "\nВесь материал уже в сообщении. Выполни задачу без инструментов."
     size = count if stage != "draw" and not spatial else 10
     schema = obj({field: {"type": "array", "items": item, "minItems": size, "maxItems": size}})
@@ -66,8 +60,6 @@ def main():
         for feature in ("shell_tool", "unified_exec", "apps", "plugins", "hooks", "memories",
                         "multi_agent", "multi_agent_v2", "code_mode", "skill_search"):
             command.extend(["--disable", feature])
-        for path in images:
-            command.extend(["-i", str(path)])
         result = subprocess.run([*command, "-"], cwd=work, input=prompt, capture_output=True, text=True)
         if gateway_failure(result.returncode, result.stderr, result.stdout):
             sys.exit(TEMPFAIL)

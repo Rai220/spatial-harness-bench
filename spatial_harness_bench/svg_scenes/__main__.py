@@ -1,4 +1,4 @@
-"""Run SVG scene questions from source, from pixels, or both.
+"""Answer scene questions by reading SVG source.
 
 --set fixed      ten authored scenes (public, v1)
 --set generated  procedural scenes from a seed: keep the seed private for a closed test set
@@ -12,17 +12,16 @@ import subprocess
 import sys
 from tempfile import TemporaryDirectory
 
-from ..gateway import GatewayError
-from ..ascii_recall.__main__ import read_output
-from ..svg_recall.__main__ import session
+from ..svg_recall.__main__ import recognize
 from .task import GENERATED_TASK_ID, TASK_ID, generated_scenes, grade, load_scenes, prompt_for
 
 
-def run(command: list[str], output: Path, mode: str, *, scene_set: str = "fixed",
+def run(command: list[str], output: Path, mode: str = "code", *, scene_set: str = "fixed",
         seed: int | None = None, per_tier: int = 2) -> dict:
     if output.exists():
         raise FileExistsError(f"Каталог результата уже существует: {output}")
-    modes = ("code", "vision") if mode == "both" else (mode,)
+    if mode != "code":
+        raise ValueError(f"Неизвестный режим: {mode}")
     if scene_set == "generated":
         from .generated import legend
 
@@ -39,30 +38,18 @@ def run(command: list[str], output: Path, mode: str, *, scene_set: str = "fixed"
         difficulty, legend = "fixed", None
     else:
         raise ValueError(f"Неизвестный набор: {scene_set}")
-    answers = {}
-    for current in modes:
-        prompt = prompt_for(current, scenes, legend(current) if legend else "")
-        with TemporaryDirectory(prefix=f"fixed-svg-{current}-") as tmp:
-            folder = Path(tmp)
-            for i, scene in enumerate(scenes):
-                if current == "code":
-                    (folder / scene.file).write_bytes(scene.picture.source)
-                else:
-                    (folder / f"{i}.png").write_bytes(scene.picture.png)
-            try:
-                session(command, folder, current, prompt, difficulty, count=len(scenes))
-            except GatewayError as exc:
-                report["modes"][current] = exc.report(current)
-                continue
-            except subprocess.CalledProcessError as exc:
-                report["modes"][current] = {"status": "error", "score": None, "returncode": exc.returncode}
-                continue
-            answers[current] = read_output(folder, "desc.txt")
-            report["modes"][current] = {"status": "complete", **grade(scenes, answers[current])}
+    prompt = prompt_for("code", scenes, legend("code") if legend else "")
+    with TemporaryDirectory(prefix="scene-svg-code-") as tmp:
+        folder = Path(tmp)
+        for scene in scenes:
+            (folder / scene.file).write_bytes(scene.picture.source)
+        answer, result = recognize(command, folder, prompt, difficulty, count=len(scenes))
     output.mkdir(parents=True, exist_ok=False)
-    for current, answer in answers.items():
-        (output / current).mkdir()
-        (output / current / "desc.txt").write_bytes(answer)
+    if answer is not None:
+        result.update(grade(scenes, answer))
+        (output / "code").mkdir()
+        (output / "code/desc.txt").write_bytes(answer)
+    report["modes"]["code"] = result
     if scene_set == "generated":
         # The scenes are reproducible from the seed; keep a copy for inspection.
         scenes_dir = output / "scenes"
@@ -79,7 +66,7 @@ def run(command: list[str], output: Path, mode: str, *, scene_set: str = "fixed"
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--mode", choices=("code", "vision", "both"), default="code")
+    parser.add_argument("--mode", choices=("code",), default="code")
     parser.add_argument("--set", dest="scene_set", choices=("fixed", "generated"), default="fixed")
     parser.add_argument("--seed", type=int, help="generated set: the seed that defines all items")
     parser.add_argument("--per-tier", type=int, default=2,

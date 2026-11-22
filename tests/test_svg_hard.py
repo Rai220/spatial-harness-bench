@@ -167,17 +167,16 @@ class TestSvgHard(unittest.TestCase):
             adapter = root / "fake.py"
             adapter.write_text(
                 "import os,sys\nfrom pathlib import Path\np=sys.stdin.read()\n"
-                "stage=os.environ['SVG_RECALL_STAGE'];assert stage in {'code','vision'}\n"
+                "stage=os.environ['SVG_RECALL_STAGE'];assert stage == 'code'\n"
                 "assert os.environ['SVG_RECALL_DIFFICULTY']=='hard'\n"
-                "ext='svg' if stage=='code' else 'png'\n"
-                "assert {f.name for f in Path.cwd().iterdir()} == {'board.'+ext}\n"
+                "assert {f.name for f in Path.cwd().iterdir()} == {'board.svg'}\n"
                 "assert 'Конечная клетка' in p and 'кошка' not in p and 'seed' not in p\n"
                 "Path('desc.txt').write_text('1,1 | неизвестно\\n'*10)\n")
             output = root / "report"
             with patch.object(verifier, "pixel_caption", return_value=None):
-                report = run([sys.executable, str(adapter)], output, "both", seed=42,
+                report = run([sys.executable, str(adapter)], output, "code", seed=42,
                              difficulty="hard", drawings_dir=originals)
             self.assertEqual(report["drawing_stage"], "reused")
             self.assertEqual(report, json.loads((output / "result.json").read_text()))
-            self.assertEqual(report["modes"]["code"]["items"], report["modes"]["vision"]["items"])
+            self.assertEqual(set(report["modes"]), {"code"})
             self.assertEqual((output / "questions.txt").read_text().count("Конечная клетка"), 10)

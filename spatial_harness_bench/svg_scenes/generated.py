@@ -385,9 +385,8 @@ def generate(seed: int, per_tier: int = 2) -> list[Item]:
 
 def legend(mode: str) -> str:
     shapes = ", ".join(SHAPES)
-    if mode == "code":
-        colors = ", ".join(f"{name} {code}" for name, code in COLORS.items())
-    else:
-        colors = ", ".join(COLORS)
+    if mode != "code":
+        raise ValueError(f"Неизвестный режим {mode}")
+    colors = ", ".join(f"{name} {code}" for name, code in COLORS.items())
     return (f"Фигуры на рисунках: {shapes}. Цвета: {colors}. Контур у всех фигур тёмный. "
             "Называй фигуру цветом и формой, например «синий ромб».")

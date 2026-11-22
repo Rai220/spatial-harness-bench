@@ -12,7 +12,7 @@ def scores():
         return {"score": 0, "max_score": maximum}
 
     def svg(maximum):
-        return {mode: subtask(maximum) for mode in ("code", "vision")}
+        return {"code": subtask(maximum)}
 
     return {"01-ascii": subtask(10), "01-ascii-free": subtask(10), "02-maze": subtask(10),
             **{f"03-{level}": svg(10) for level in ("basic", "hard", "expert", "master")},
@@ -28,12 +28,12 @@ class OverallScoreTests(unittest.TestCase):
         self.assertIn("<td>Codex 1.2.3 · OpenAI</td>", html)
         self.assertIn("| 1 | Example | Codex 1.2.3 · OpenAI | 72,50 |", markdown)
 
-    def test_arcade_is_one_point_and_scene_modes_have_equal_weight(self):
+    def test_arcade_is_one_point_and_scene_sets_have_equal_weight(self):
         data = scores()
         data["05-arcade"]["score"] = 1
         self.assertEqual(overall_score(data), 1)
         data["04-fixed"]["code"]["score"] = 10
-        data["04-generated"]["vision"]["score"] = 24
+        data["04-generated"]["vision"] = {"score": 24, "max_score": 24}
         self.assertEqual(overall_score(data), 13.38)
 
     def test_perfect_spatial_score_leaves_one_point_for_arcade(self):
@@ -48,10 +48,10 @@ class OverallScoreTests(unittest.TestCase):
 
     def test_incomplete_result_cannot_enter_ranking(self):
         data = scores()
-        data["03-expert"]["vision"].update(status="error", score=None)
+        data["03-expert"]["code"].update(status="error", score=None)
         with self.assertRaises(ValueError):
             overall_score(data)
-        del data["03-expert"]["vision"]
+        del data["03-expert"]["code"]
         with self.assertRaises(KeyError):
             overall_score(data)
 

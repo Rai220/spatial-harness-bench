@@ -61,14 +61,9 @@ def load_scenes() -> tuple[list[Scene], str]:
 
 
 def prompt_for(mode: str, scenes: list[Scene], legend: str = "") -> str:
-    if mode == "code":
-        instruction = "Прочитай десять SVG-файлов как текст и определи ответ по геометрии. Не рендери изображения."
-        ext = "svg"
-    elif mode == "vision":
-        instruction = "Рассмотри десять PNG-изображений с помощью зрения."
-        ext = "png"
-    else:
+    if mode != "code":
         raise ValueError(f"Неизвестный режим {mode}")
+    instruction = "Прочитай десять SVG-файлов как текст и определи ответ по геометрии. Не рендери изображения."
     count = len(scenes)
     instruction = instruction.replace("десять", str(count)) if count != 10 else instruction
     rows = [instruction, "Рисунки уже готовы. Для каждого ответь на его вопрос по-русски. "
@@ -78,7 +73,7 @@ def prompt_for(mode: str, scenes: list[Scene], legend: str = "") -> str:
     if legend:
         rows.append(legend)
     for i, scene in enumerate(scenes):
-        rows.append(f"{i}.{ext} — {scene.question}")
+        rows.append(f"{i}.svg — {scene.question}")
     return "\n".join(rows) + "\n"
 
 

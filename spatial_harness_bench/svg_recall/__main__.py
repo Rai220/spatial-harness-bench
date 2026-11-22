@@ -1,4 +1,4 @@
-"""Draw once, then run each requested recognition mode in its own fresh session."""
+"""Draw once, then recognize the SVG source in a fresh session."""
 
 import argparse
 import json
@@ -21,7 +21,7 @@ from .verifier import inspect
 
 ASSIGNED_INTRO = """Нарисуй в SVG десять назначенных объектов реального мира так, чтобы потом узнать
 каждый по одному рисунку, когда список названий и история будут скрыты. Объект должен быть
-узнаваем и по форме на картинке, и по геометрии в коде.
+узнаваем по геометрии в коде SVG.
 
 """
 
@@ -33,9 +33,20 @@ def session(command: list[str], folder: Path, stage: str, prompt: str, difficult
     run_stage(command, folder, prompt, env=env)
 
 
-def run(command: list[str], output: Path, mode: str, *, difficulty: str = "basic",
+def recognize(command: list[str], folder: Path, prompt: str, difficulty: str, count: int = 10):
+    try:
+        session(command, folder, "code", prompt, difficulty, count=count)
+    except GatewayError as exc:
+        return None, exc.report("code")
+    except subprocess.CalledProcessError as exc:
+        return None, {"status": "error", "score": None, "returncode": exc.returncode}
+    return read_output(folder, "desc.txt"), {"status": "complete"}
+
+
+def run(command: list[str], output: Path, mode: str = "code", *, difficulty: str = "basic",
         seed: int | None = None, drawings_dir: Path | None = None, objects: str = "free") -> dict:
-    modes = ("code", "vision") if mode == "both" else (mode,)
+    if mode != "code":
+        raise ValueError(f"Неизвестный режим: {mode}")
     if output.exists():
         raise FileExistsError(f"Каталог результата уже существует: {output}")
     if difficulty not in {"basic", *hard.LEVEL_COUNTS}:
@@ -69,7 +80,7 @@ def run(command: list[str], output: Path, mode: str, *, difficulty: str = "basic
             except GatewayError as exc:
                 task = f"{TASK_ID}-{difficulty}" if spatial else TASK_ID
                 return save_error(output, task, 10, "draw", exc, objects=objects, seed=seed,
-                                  modes={mode: exc.report("draw") for mode in modes})
+                                  modes={"code": exc.report("draw")})
         else:
             folder = drawings_dir
         if assigned:
@@ -102,41 +113,25 @@ def run(command: list[str], output: Path, mode: str, *, difficulty: str = "basic
         board_svg, board_png = hard.render_board(board, pictures)
         instructions = hard.questions_text(questions, expert=difficulty != "hard")
         report.update(seed=seed, board=board, drawing_stage="reused" if drawings_dir else "fresh")
-    answers = {}
-    for current in modes:
-        with TemporaryDirectory(prefix=f"svg-{current}-") as tmp:
-            folder = Path(tmp)
-            if spatial:
-                if current == "code":
-                    (folder / "board.svg").write_bytes(board_svg)
-                    media = "Прочитай board.svg как текст и определи предметы по геометрии SVG. Не рендери поле."
-                else:
-                    (folder / "board.png").write_bytes(board_png)
-                    media = "Рассмотри изображение board.png с помощью зрения."
-                prompt = media + "\n" + instructions
-            else:
-                files = FILES if current == "code" else PNG_FILES
-                for name, picture in zip(files, pictures, strict=True):
-                    (folder / name).write_bytes(picture.source if current == "code" else picture.png)
-                prompt = recall_prompt(current)
-            if objects == "kitchen":
-                prompt += KITCHEN_RECALL
-            try:
-                session(command, folder, current, prompt, difficulty)
-            except GatewayError as exc:
-                report["modes"][current] = exc.report(current)
-                continue
-            except subprocess.CalledProcessError as exc:
-                report["modes"][current] = {"status": "error", "score": None, "returncode": exc.returncode}
-                continue
-            answers[current] = read_output(folder, "desc.txt")
-            if spatial:
-                graded = hard.grade(board, questions, names, issues, answers[current], task=report["task"])
-            else:
-                graded = score(names, answers[current], issues, files=FILES, task=TASK_ID)
-            report["modes"][current] = {"status": "complete", **graded}
+    with TemporaryDirectory(prefix="svg-code-") as tmp:
+        folder = Path(tmp)
+        if spatial:
+            (folder / "board.svg").write_bytes(board_svg)
+            prompt = "Прочитай board.svg как текст и определи предметы по геометрии SVG. Не рендери поле.\n" + instructions
+        else:
+            for name, picture in zip(FILES, pictures, strict=True):
+                (folder / name).write_bytes(picture.source)
+            prompt = recall_prompt("code")
+        if objects == "kitchen":
+            prompt += KITCHEN_RECALL
+        answer, result = recognize(command, folder, prompt, difficulty)
+    if answer is not None:
+        if spatial:
+            result.update(hard.grade(board, questions, names, issues, answer, task=report["task"]))
+        else:
+            result.update(score(names, answer, issues, files=FILES, task=TASK_ID))
+    report["modes"]["code"] = result
 
-    # Publish once both fresh sessions have exited. No reference or other mode's guesses in either workspace.
     output.mkdir(parents=True, exist_ok=False)
     original = output / "original"
     rendered = output / "rendered"
@@ -150,16 +145,16 @@ def run(command: list[str], output: Path, mode: str, *, difficulty: str = "basic
     for name, png_name, data, picture in zip(FILES, PNG_FILES, drawings, pictures, strict=True):
         (original / name).write_bytes(data)
         (rendered / png_name).write_bytes(picture.png)
-    for stage, answer in answers.items():
-        (output / stage).mkdir()
-        (output / stage / "desc.txt").write_bytes(answer)
+    if answer is not None:
+        (output / "code").mkdir()
+        (output / "code/desc.txt").write_bytes(answer)
     (output / "result.json").write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     return report
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--mode", choices=("code", "vision", "both"), default="code")
+    parser.add_argument("--mode", choices=("code",), default="code")
     parser.add_argument("--difficulty", choices=("basic", *hard.LEVEL_COUNTS), default="basic")
     parser.add_argument("--seed", type=int, help="reproduce a board and its questions, or an assigned object list")
     parser.add_argument("--drawings", type=Path, help="reuse a drawing session's original/ directory")

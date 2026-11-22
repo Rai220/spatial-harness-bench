@@ -37,19 +37,19 @@ stage = os.environ['SVG_RECALL_STAGE']
 log = Path(sys.argv[1])
 previous = log.read_text().splitlines() if log.exists() else []
 with log.open('a') as f: print(stage, file=f)
-if stage == 'vision' and 'vision' not in previous:
-    Path('0.png').unlink()
+if not previous:
+    Path('0.svg').unlink()
     Path('leftover').write_text('failed output')
     Path('desc.txt').write_text('discard me')
     print('API Error: 400 Invalid request parameter', file=sys.stderr)
     sys.exit(1)
 assert not Path('leftover').exists() and not Path('desc.txt').exists()
-if stage == 'vision': assert Path('0.png').read_bytes().startswith(b'\\x89PNG')
+assert stage == 'code' and b'<svg' in Path('0.svg').read_bytes()
 Path('desc.txt').write_text('valid but wrong')
 """)
-        result = scenes_run(cmd, self.root / "out", "both")
-        self.assertEqual((self.root / "calls").read_text().splitlines(), ["code", "vision", "vision"])
-        self.assertEqual([row["score"] for row in result["modes"].values()], [0, 0])
+        result = scenes_run(cmd, self.root / "out", "code")
+        self.assertEqual((self.root / "calls").read_text().splitlines(), ["code", "code"])
+        self.assertEqual([row["score"] for row in result["modes"].values()], [0])
         self.sleep.assert_called_once_with(1)
 
     def test_exhausted_file_stages_never_grade_a_partial_submission(self):
@@ -65,15 +65,14 @@ Path('desc.txt').write_text('valid but wrong')
                 self.assertIsNone(list(rows(result))[0][2])
                 self.assertFalse((output / "desc.txt").exists())
 
-    def test_unavailable_svg_artist_blocks_both_modes(self):
+    def test_unavailable_svg_artist_blocks_recognition(self):
         cmd = self.command("import sys; sys.exit(75)")
         output = self.root / "svg"
-        report = svg_run(cmd, output, "both", objects="assigned", seed=2)
+        report = svg_run(cmd, output, "code", objects="assigned", seed=2)
         self.assertEqual(report["status"], "error")
-        for mode in ("code", "vision"):
-            self.assertEqual(report["modes"][mode], {"status": "error", "reason": "gateway",
-                             "attempts": 3, "stage": "draw", "score": None})
-            self.assertFalse((output / mode).exists())
+        self.assertEqual(report["modes"], {"code": {"status": "error", "reason": "gateway",
+                         "attempts": 3, "stage": "draw", "score": None}})
+        self.assertFalse((output / "code").exists())
 
     def test_failed_cli_event_even_with_exit_zero_but_no_retry_for_model_errors(self):
         folder = self.root / "work"

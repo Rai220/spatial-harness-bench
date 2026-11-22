@@ -52,7 +52,7 @@ class TestStats(unittest.TestCase):
             self.assertEqual((code["runs"], code["mean"], code["items"]), (3, 7, 30))
             half = 4.303 * 1 / math.sqrt(3)
             self.assertAlmostEqual(code["runs_ci95"][0], 7 - half)
-            self.assertEqual(groups[("m", "04", "vision")].errors, 3)
+            self.assertNotIn(("m", "04", "vision"), groups)
             maze = summarize(("z", "02-maze-v2", "-"), groups[("z", "02-maze-v2", "-")])
             self.assertEqual((maze["runs"], maze["items"], maze["efficiency"]), (3, 6, 0.25))
 

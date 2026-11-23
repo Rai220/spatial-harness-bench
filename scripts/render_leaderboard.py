@@ -104,7 +104,8 @@ def main():
     html_table, table_lines = table(ranking(paths))
     html_examples, example_lines = examples()
     markdown = ["# Spatial Harness Bench · Лидерборд", "", f"[GitHub Pages]({SITE})", "", METHOD, "",
-                *table_lines, "", *example_lines]
+                *table_lines, "", "[Пять дополнительных задач по поэтажным планам](README.md#building) "
+                "· Отдельный зачёт 0–5.", "", *example_lines]
     page = f'''<!doctype html>
 <html lang="ru">
 <head>
@@ -119,6 +120,7 @@ def main():
 <main><div class="intro"><h1>Лидерборд</h1></div>
 {html_table}
 <p>{METHOD} <a href="{REPO}#общая-оценка">Методика</a></p>
+<p><a href="{REPO}#building">Пять дополнительных задач по поэтажным планам</a> · Отдельный зачёт 0–5.</p>
 {html_examples}</main>
 <footer><span>Spatial Harness Bench</span><a href="{REPO}/blob/main/LEADERBOARD.md">Таблица в репозитории</a></footer>
 </body></html>

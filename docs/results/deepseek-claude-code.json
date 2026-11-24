@@ -1,6 +1,6 @@
 {
   "benchmark": "Spatial Harness Bench",
-  "date": "2026-11-21",
+  "date": "2026-11-24",
   "model": "deepseek/deepseek-v4.1-flash",
   "display_model": "DeepSeek V4.1 Flash",
   "harness": "Claude Code",
@@ -11,6 +11,7 @@
   "drawing_seed": "3170149012674641413",
   "maze_suite_seed": "8278864541757570430",
   "run_profile": "medium-v1",
+  "additional_source_commit": "d495e51c5fa08633d8daab1470dc3223903434a6",
   "datasets": {
     "fixed": {
       "version": 1,
@@ -19,9 +20,13 @@
     "generated": {
       "version": 1,
       "dataset_sha256": "3ffb6b5258887c899439dd0b3e0a62bb83de5f57c33c47b8cb3fa682b018545e"
+    },
+    "additional": {
+      "version": 1,
+      "dataset_sha256": "fc8a021d4edfff12dcd6c401ca057d0094b8862e23b7700f9b9f5d66533a7ddd"
     }
   },
-  "scoring_version": "spatial-macro-v3",
-  "overall_score": 87.01,
+  "scoring_version": "spatial-macro-v4",
+  "overall_score": 87.45,
   "max_score": 100
 }

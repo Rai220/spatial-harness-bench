@@ -1,20 +1,20 @@
 # Spatial Harness Bench · Лидерборд
 
-[GitHub Pages](https://krestnikov.org/spatial-harness-bench/)
+Обновлено 2026-11-24. [GitHub Pages](https://krestnikov.org/spatial-harness-bench/)
 
-Первые четыре задачи дают до 24,75 балла каждая. В SVG-задачах оцениваются ответы по исходному коду. За аркадную задачу начисляется 1 балл при успехе и 0 при ошибке.
+Четыре блока с ASCII, лабиринтами и SVG дают по 22 балла. Аркада даёт 1 балл, пять задач по дому — до 5. В AD&DBench четыре карты, поручение на память и экспедиция дают ещё до 6 баллов.
 
 | Место | Модель | Харнес | Балл из 100 |
 | ---: | --- | --- | ---: |
-| 1 | GPT-6.2 Astra | Codex 0.171.0 · OpenAI | 100,00 |
-| 2 | Opus 5.5 · [Разбор ответов](https://krestnikov.org/spatial-harness-bench/answers/opus-claude-code-20261121/) | Claude Code 2.1.278 · OpenRouter | 92,58 |
-| 3 | DeepSeek V4.1 Flash | Claude Code 2.1.278 · OpenRouter | 87,01 |
-| 4 | Astra 6 | Claude Code 2.1.278 · OpenRouter | 82,68 |
-| 5 | Sonnet 5.5 | Claude Code 2.1.278 · OpenRouter | 65,07 |
-| 6 | GigaChat-4 | Pi 0.73.1 · OpenRouter | 50,22 |
-| 7 | Haiku 5.5 | Claude Code 2.1.278 · OpenRouter | 46,89 |
+| 1 | GPT-6.2 Astra | Codex 0.171.0 · OpenAI | 99,00 |
+| 2 | Opus 5.5 · [Разбор ответов](https://krestnikov.org/spatial-harness-bench/answers/opus-claude-code-20261121/) | Claude Code 2.1.278 · OpenRouter | 92,40 |
+| 3 | DeepSeek V4.1 Flash | Claude Code 2.1.278 · OpenRouter | 87,45 |
+| 4 | Astra 6 | Claude Code 2.1.278 · OpenRouter | 84,60 |
+| 5 | Sonnet 5.5 | Claude Code 2.1.278 · OpenRouter | 62,84 |
+| 6 | GigaChat-4 | Pi 0.73.1 / 1.6.0 · OpenRouter | 54,64 |
+| 7 | Haiku 5.5 | Claude Code 2.1.278 · OpenRouter | 51,79 |
 
-[Пять дополнительных задач по поэтажным планам](README.md#building) · Отдельный зачёт 0–5.
+[Поэтажные планы](README.md#building) · [Задачи AD&DBench](README.md#adnd)
 
 ## Примеры задач
 

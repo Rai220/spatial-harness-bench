@@ -1,8 +1,8 @@
 {
   "benchmark": "Spatial Harness Bench",
-  "date": "2026-11-21",
-  "model": "anthropic/claude-sonnet-5.5",
-  "display_model": "Sonnet 5.5",
+  "date": "2026-11-24",
+  "model": "anthropic/claude-haiku-5.5",
+  "display_model": "Haiku 5.5",
   "harness": "Claude Code",
   "harness_version": "2.1.278",
   "provider_label": "OpenRouter",
@@ -10,6 +10,7 @@
   "benchmark_package_sha256": "35934869039e267edb27b19be0f8d29fd942f774ff598548a0d854accea04918",
   "drawing_seed": "3170149012674641413",
   "maze_suite_seed": "8278864541757570430",
+  "additional_source_commit": "d495e51c5fa08633d8daab1470dc3223903434a6",
   "datasets": {
     "fixed": {
       "version": 1,
@@ -18,9 +19,13 @@
     "generated": {
       "version": 1,
       "dataset_sha256": "3ffb6b5258887c899439dd0b3e0a62bb83de5f57c33c47b8cb3fa682b018545e"
+    },
+    "additional": {
+      "version": 1,
+      "dataset_sha256": "fc8a021d4edfff12dcd6c401ca057d0094b8862e23b7700f9b9f5d66533a7ddd"
     }
   },
-  "scoring_version": "spatial-macro-v3",
-  "overall_score": 65.07,
+  "scoring_version": "spatial-macro-v4",
+  "overall_score": 51.79,
   "max_score": 100
 }

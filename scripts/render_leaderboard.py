@@ -1,5 +1,6 @@
 """Render the same overall ranking for GitHub Pages and the repository."""
 
+from datetime import date
 from html import escape
 import json
 from pathlib import Path
@@ -9,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DOCS = ROOT / "docs"
 REPO = "https://github.com/Rai220/spatial-harness-bench"
 SITE = "https://krestnikov.org/spatial-harness-bench/"
-METHOD = "Первые четыре задачи дают до 24,75 балла каждая. В SVG-задачах оцениваются ответы по исходному коду. За аркадную задачу начисляется 1 балл при успехе и 0 при ошибке."
+METHOD = "Четыре блока с ASCII, лабиринтами и SVG дают по 22 балла. Аркада даёт 1 балл, пять задач по дому — до 5. В AD&DBench четыре карты, поручение на память и экспедиция дают ещё до 6 баллов."
 EXAMPLE_INTRO = "В пяти задачах модель работает с рисунками, комнатами лабиринта и записью игры. Попробуйте ответить на вопросы по иллюстрациям."
 EXAMPLES = (
     ("ASCII-рисунки", "examples/ascii.svg", "Два рисунка из символов, сделанные GPT-6.2 Astra.",
@@ -56,8 +57,11 @@ def ranking(paths):
                   "maze_suite_seed", "max_score"):
         if any(run[field] != runs[0][field] for run in runs):
             raise ValueError(f"Несопоставимые условия замера: {field}")
-    if runs[0]["max_score"] != 100 or runs[0]["scoring_version"] != "spatial-macro-v3":
+    if runs[0]["max_score"] != 100 or runs[0]["scoring_version"] != "spatial-macro-v4":
         raise ValueError("Неизвестная шкала лидерборда.")
+    configurations = {(r["display_model"], r.get("harness"), r.get("provider_label")) for r in runs}
+    if len(configurations) != len(runs):
+        raise ValueError("Найдено несколько результатов для одной модели и харнеса.")
     runs.sort(key=lambda r: (-r["overall_score"], r["display_model"].casefold(), r["date"]))
     rows = []
     for index, run in enumerate(runs, 1):
@@ -81,7 +85,7 @@ def table(rows):
         score = f"{value:.2f}".replace(".", ",")
         html_label = escape(label)
         label = label.replace("|", r"\|")
-        answer_dir = Path("answers") / run["result_id"]
+        answer_dir = Path("answers") / run.get("answer_gallery", run["result_id"])
         if (DOCS / answer_dir / "index.html").is_file():
             href = quote(answer_dir.as_posix()) + "/"
             html_label += f' <a class="answer-link" href="{href}">Разбор ответов</a>'
@@ -101,11 +105,13 @@ def table(rows):
 
 def main():
     paths = sorted((DOCS / "results").glob("*.json"))
-    html_table, table_lines = table(ranking(paths))
+    rows = ranking(paths)
+    updated = max(date.fromisoformat(run["date"]) for _, run in rows).isoformat()
+    html_table, table_lines = table(rows)
     html_examples, example_lines = examples()
-    markdown = ["# Spatial Harness Bench · Лидерборд", "", f"[GitHub Pages]({SITE})", "", METHOD, "",
-                *table_lines, "", "[Пять дополнительных задач по поэтажным планам](README.md#building) "
-                "· Отдельный зачёт 0–5.", "", *example_lines]
+    markdown = ["# Spatial Harness Bench · Лидерборд", "", f"Обновлено {updated}. [GitHub Pages]({SITE})", "", METHOD, "",
+                *table_lines, "", "[Поэтажные планы](README.md#building) · "
+                "[Задачи AD&DBench](README.md#adnd)", "", *example_lines]
     page = f'''<!doctype html>
 <html lang="ru">
 <head>
@@ -117,10 +123,10 @@ def main():
 <body>
 <header><a class="brand" href="./">Spatial Harness Bench<span>.</span></a>
 <nav aria-label="Навигация"><a href="{REPO}">GitHub</a></nav></header>
-<main><div class="intro"><h1>Лидерборд</h1></div>
+<main><div class="intro"><h1>Лидерборд</h1><p>Обновлено <time datetime="{updated}">{updated}</time>.</p></div>
 {html_table}
 <p>{METHOD} <a href="{REPO}#общая-оценка">Методика</a></p>
-<p><a href="{REPO}#building">Пять дополнительных задач по поэтажным планам</a> · Отдельный зачёт 0–5.</p>
+<p><a href="{REPO}#building">Поэтажные планы</a> · <a href="{REPO}#adnd">Задачи AD&amp;DBench</a></p>
 {html_examples}</main>
 <footer><span>Spatial Harness Bench</span><a href="{REPO}/blob/main/LEADERBOARD.md">Таблица в репозитории</a></footer>
 </body></html>

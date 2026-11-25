@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import secrets
 import socket
 import subprocess
@@ -20,6 +21,22 @@ class ProviderError(TransportError):
 
 class ToolViolation(TransportError):
     pass
+
+
+DIAGNOSTIC = re.compile(rb"^spatial-native: ([a-z][a-z0-9_]{0,47})(?: http_status=([1-5][0-9]{2}))?$", re.MULTILINE)
+
+
+def diagnostics(stderr):
+    for code, status in DIAGNOSTIC.findall(stderr):
+        entry = {"code": code.decode("ascii")}
+        if status:
+            entry["http_status"] = int(status)
+        yield entry
+
+
+def report_failure(code, http_status=None):
+    detail = "" if http_status is None else f" http_status={http_status}"
+    print(f"spatial-native: {code}{detail}", file=sys.stderr, flush=True)
 
 
 def codex_config(model, *, tool_free=False):
@@ -235,8 +252,10 @@ class Pi:
             if remaining <= 0 or not ready.select(remaining):
                 raise subprocess.TimeoutExpired(self.command, self.timeout)
             chunk = os.read(self.process.stdout.fileno(), 65536)
-            if not chunk or len(self.buffer) + len(chunk) > 16 * 1024 * 1024:
-                raise TransportError
+            if not chunk:
+                raise TransportError("rpc_closed")
+            if len(self.buffer) + len(chunk) > 16 * 1024 * 1024:
+                raise TransportError("rpc_event_too_large")
             self.buffer.extend(chunk)
 
     def turn(self, prompt, *, ephemeral=False):
@@ -256,10 +275,14 @@ class Pi:
                 event = self.read_event(ready, deadline)
                 kind = event.get("type")
                 if kind == "response" and not event.get("success"):
-                    raise TransportError
+                    raise TransportError("rpc_rejected")
                 if kind == "message_end" and event.get("message", {}).get("role") == "assistant":
                     message = event["message"]
                     if message.get("stopReason") in {"error", "aborted"}:
+                        error = message.get("errorMessage")
+                        status = re.search(r"(?:^|\b)([45][0-9]{2}) (?:status code|HTTP\b)", error) if isinstance(error, str) else None
+                        if status:
+                            raise ProviderError(int(status[1]))
                         raise ProviderError
                     if any(block.get("type") == "toolCall" for block in message["content"]):
                         raise ToolViolation
@@ -284,12 +307,23 @@ def main():
                     break
                 text = transport.turn(turn_prompt(req))
                 print(json.dumps(response(req, text), ensure_ascii=False), flush=True)
-    except ProviderError:
+    except ProviderError as exc:
+        status = exc.args[0] if len(exc.args) == 1 and type(exc.args[0]) is int else None
+        report_failure("provider_error", status)
         if mode == "session":
             print('{"type":"gateway_error","exhausted":true,"attempts":1}', flush=True)
         return 75
-    except (TransportError, subprocess.TimeoutExpired, OSError, ValueError):
-        print("Native CLI did not complete a valid tool-free turn.", file=sys.stderr)
+    except subprocess.TimeoutExpired:
+        report_failure("turn_timeout")
+        return 70
+    except ToolViolation:
+        report_failure("unexpected_tool_call")
+        return 70
+    except TransportError as exc:
+        report_failure(exc.args[0] if exc.args else "invalid_native_turn")
+        return 70
+    except (OSError, ValueError):
+        report_failure("native_io_or_protocol_error")
         return 70
     finally:
         transport.close()

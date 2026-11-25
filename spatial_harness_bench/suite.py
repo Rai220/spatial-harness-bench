@@ -140,6 +140,20 @@ def invocation(block, args, command, image, output, run_id):
 
 
 def summary(output, returncode, agent=None):
+    diagnostics = output.parent / f"{output.name}.diagnostics.jsonl"
+    records = []
+    try:
+        with diagnostics.open(encoding="utf-8") as stream:
+            records = [json.loads(line) for line in stream]
+    except (OSError, ValueError):
+        pass
+    failure = next((r for r in reversed(records)
+                    if r.get("code") not in {"provider_http", "process_guard_verified"}), None)
+    last_http = next((r["http_status"] for r in reversed(records) if "http_status" in r), None)
+    extra = {"native_diagnostic": failure} if failure else {}
+    if last_http is not None:
+        extra["last_provider_http_status"] = last_http
+
     path = output / "result.json"
     if not path.is_file():
         # Maze emits suite.json for a ten-level run.
@@ -147,7 +161,8 @@ def summary(output, returncode, agent=None):
     try:
         report = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
-        return {"status": "technical_error", "score": None, "reason": "missing_or_invalid_runner_report"}
+        return {"status": "technical_error", "score": None,
+                "reason": failure["code"] if failure else "missing_or_invalid_runner_report", **extra}
     if not isinstance(report, dict):
         return {"status": "technical_error", "score": None, "reason": "invalid_runner_report"}
     score = report.get("modes", {}).get("code", report)
@@ -168,7 +183,9 @@ def summary(output, returncode, agent=None):
         (item["reason"] for item in report.get("items", []) if item.get("reason")), None)
     return {
         "status": "technical_error" if technical else ("agent_error" if report.get("agent_errors") else "complete"),
-        "score": None if technical else value, "max_score": maximum, "artifact": relative, "reason": reason,
+        "score": None if technical else value, "max_score": maximum, "artifact": relative,
+        "reason": failure["code"] if technical and failure else reason,
+        **(extra if technical else {}),
     }
 
 
@@ -246,7 +263,9 @@ def main(argv=None):
             print(f"[{block.name}]", flush=True)
             with (output / f"{block.name}.log").open("w", encoding="utf-8") as logs:
                 completed = subprocess.run(invocation(block, args, command, image, target, run_id),
-                                           check=False, stdout=logs, stderr=subprocess.STDOUT)
+                                           check=False, stdout=logs, stderr=subprocess.STDOUT,
+                                           env={**os.environ, "SPATIAL_SUITE_DIAGNOSTICS":
+                                                str(output / f"{block.name}.diagnostics.jsonl")})
             row.update(summary(target, completed.returncode, args.agent), returncode=completed.returncode)
             save()
         report["status"] = ("technical_error" if any(r["status"] == "technical_error" for r in report["blocks"])

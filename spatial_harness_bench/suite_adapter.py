@@ -1,5 +1,6 @@
 """Isolate native agents from legacy evaluators and exchange only public inputs."""
 
+import json
 import os
 import shutil
 import subprocess
@@ -103,15 +104,31 @@ def bounded_run(argv, prompt, timeout):
                                                    bytes(output), bytes(diagnostics))
             except BaseException:
                 child.kill()
+                save_diagnostics(bytes(diagnostics))
                 raise
+
+
+def save_diagnostics(stderr):
+    filename = os.environ.get("SPATIAL_SUITE_DIAGNOSTICS")
+    records = list(native.diagnostics(stderr))
+    if filename and records:
+        with Path(filename).open("a", encoding="utf-8") as log:
+            log.writelines(json.dumps(record, separators=(",", ":")) + "\n" for record in records)
 
 
 def invoke(image, network, run_id, command, *, stage=None, helper=False, prompt=None, timeout=None):
     name, argv = docker_command(image, network, run_id, command, stage=stage, helper=helper)
     try:
         if prompt is None:
-            return subprocess.CompletedProcess(argv, subprocess.run(argv, check=False).returncode, b"", b"")
+            with TemporaryFile() as diagnostics:
+                completed = subprocess.run(argv, check=False, stderr=diagnostics)
+                diagnostics.seek(max(0, diagnostics.tell() - 128 * 1024))
+                stderr = diagnostics.read()
+                save_diagnostics(stderr)
+                sys.stderr.buffer.write(stderr)
+                return subprocess.CompletedProcess(argv, completed.returncode, b"", stderr)
         result = bounded_run(argv, prompt, timeout)
+        save_diagnostics(result.stderr)
         if result.stderr:
             sys.stderr.buffer.write(result.stderr)
         return result
@@ -204,6 +221,10 @@ def main():
                     if data is not None:
                         (folder / filename).write_bytes(data)
             return result.returncode
+    except subprocess.TimeoutExpired:
+        save_diagnostics(b"spatial-native: sandbox_timeout\n")
+        native.report_failure("sandbox_timeout")
+        return 70
     except (OSError, ValueError, subprocess.SubprocessError) as exc:
         print(f"Agent transport failed: {type(exc).__name__}", file=sys.stderr, flush=True)
         return 70

@@ -64,6 +64,19 @@ class SuiteTest(unittest.TestCase):
             result.write_text(json.dumps({"task": "02-maze-v2-01", "status": "solved"}))
             self.assertEqual(suite.summary(output, 0)["score"], 1)
 
+    def test_timeout_and_http_status_survive_missing_legacy_report(self):
+        with TemporaryDirectory() as tmp:
+            output = Path(tmp) / "svg_scenes.generated"
+            report = output.parent / f"{output.name}.diagnostics.jsonl"
+            with patch.dict("os.environ", {"SPATIAL_SUITE_DIAGNOSTICS": str(report)}):
+                adapter.save_diagnostics(b"omitted unrelated stderr\nspatial-native: provider_http http_status=200\n"
+                                         b"spatial-native: turn_timeout\nprovider details not retained\n")
+            row = suite.summary(output, 1, "pi")
+            self.assertEqual(row["reason"], "turn_timeout")
+            self.assertEqual(row["last_provider_http_status"], 200)
+            self.assertIsNone(row["score"])
+            self.assertNotIn("provider details", report.read_text())
+
     def test_file_exchange_only_accepts_regular_artifacts(self):
         with TemporaryDirectory() as tmp:
             folder = Path(tmp)

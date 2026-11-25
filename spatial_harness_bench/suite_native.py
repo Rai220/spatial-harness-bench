@@ -105,8 +105,14 @@ def response(request, text):
         return {"move": text.strip()}
     try:
         answer = json_answer(text)
-        if isinstance(answer, dict) and set(answer) == {"action"}:
-            return answer
+        if isinstance(answer, dict):
+            if request.get("observation", {}).get("scenario") == "memory":
+                # Memory asks the model for a bare action. Its outer envelope
+                # belongs to the evaluator protocol, not the model response.
+                if isinstance(answer.get("type"), str):
+                    return {"action": answer}
+            elif set(answer) == {"action"}:
+                return answer
     except (ValueError, RecursionError):
         pass
     return {"action": {"type": "invalid"}}

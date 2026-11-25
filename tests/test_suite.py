@@ -121,6 +121,15 @@ class NativeTest(unittest.TestCase):
         self.assertTrue(all(call.kwargs["env"] is credentials for call in run.call_args_list))
         self.assertEqual(run.call_args.args[0][-2:], ["--session", "episode"])
 
+    def test_memory_wraps_bare_model_actions_but_expedition_does_not(self):
+        request = {"type": "observation", "observation": {"scenario": "memory"}}
+        for action in ({"type": "move", "direction": "forward"}, {"type": "answer", "item": "янтарный ключ"}):
+            self.assertEqual(native.response(request, json.dumps(action)), {"action": action})
+            self.assertEqual(native.response({"type": "observation"}, json.dumps(action)),
+                             {"action": {"type": "invalid"}})
+        self.assertEqual(native.response(request, '{"type":"answer","type":"move"}'),
+                         {"action": {"type": "invalid"}})
+
     def test_provider_error_and_bad_model_action_are_distinct(self):
         with self.assertRaises(native.ProviderError):
             native.parse_turn("opencode", completed([event("error", error={"type": "provider.network"})]), None)

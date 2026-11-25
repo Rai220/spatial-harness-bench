@@ -39,6 +39,11 @@ class SuiteTest(unittest.TestCase):
             self.assertEqual(suite.options(by_name["engineering_geometry"], False),
                              ("--family", "all", "--count", "5"))
 
+    def test_pi_accepts_full_dry_run(self):
+        with patch("sys.stdout", new=io.StringIO()) as out:
+            self.assertEqual(suite.main(["--all", "--agent", "pi", "--model", "provider/id", "--dry-run"]), 0)
+        self.assertEqual(len(json.loads(out.getvalue())["blocks"]), len(suite.catalog()))
+
     def test_preflight_incompatible_request_never_launches_docker(self):
         with patch.object(suite, "preflight") as check, patch("sys.stderr", new=io.StringIO()):
             with self.assertRaises(SystemExit) as exc:
@@ -129,6 +134,11 @@ class NativeTest(unittest.TestCase):
                              {"action": {"type": "invalid"}})
         self.assertEqual(native.response(request, '{"type":"answer","type":"move"}'),
                          {"action": {"type": "invalid"}})
+
+    def test_pi_stream_failure_is_not_a_model_score(self):
+        records = [event("message_end", message={"role": "assistant", "stopReason": "error"})]
+        self.assertTrue(native.event_failure(records))
+        self.assertFalse(native.event_failure([event("message_end", message={"stopReason": "stop"})]))
 
     def test_provider_error_and_bad_model_action_are_distinct(self):
         with self.assertRaises(native.ProviderError):

@@ -45,6 +45,8 @@ def file_command(agent, model, command):
                 *native.codex_config(model), "-"]
     if agent == "opencode":
         return [*command, "run", "--standalone", "--auto", "--format", "json", "--model", model]
+    if agent == "pi":
+        return [*command, *native.pi_flags(model), "--print", "--mode", "json"]
     return command
 
 
@@ -194,7 +196,7 @@ def main():
                     path.chmod(0o644)
             result = invoke(image, network, run_id, file_command(agent, model, command),
                           stage=stage.resolve(), prompt=prompt, timeout=timeout)
-            if agent in {"codex", "opencode"} and native.event_failure(native.events(result.stdout)):
+            if agent in {"codex", "opencode", "pi"} and native.event_failure(native.events(result.stdout)):
                 return 75
             if result.returncode == 0:
                 for filename in FILE_OUTPUTS[family]:

@@ -97,7 +97,7 @@ def preflight(blocks, args, binary):
         raise ValueError("the harness network must be a dedicated internal Docker bridge")
     image = docker_check("image", "inspect", "--format", "{{.Id}}", args.image)
     from .suite_adapter import container_args
-    needs_python = any(block.mode in {"source", "session"} and args.agent in {"codex", "opencode"}
+    needs_python = any(block.mode in {"source", "session"} and args.agent in {"codex", "opencode", "pi"}
                        for block in blocks)
     probe = ["python3", "-c", "import shutil,sys;sys.exit(not shutil.which(sys.argv[1]))", binary]
     if not needs_python:
@@ -125,11 +125,15 @@ def invocation(block, args, command, image, output, run_id):
             runner += ["--io-timeout", str(args.timeout + 20)]
         elif block.family == "adnd_expedition":
             runner += ["--timeout", str(args.timeout + 20)]
+    pi_bridge = args.agent == "pi" and block.family in {"maze", "adnd_expedition"}
     launcher = [sys.executable, str(Path(__file__).with_name("suite_adapter.py")), image, args.network,
                 str(args.timeout), run_id, block.family,
-                "stream" if block.mode == "session" and args.agent == "pi" else block.mode, args.agent or "external",
+                "stream" if pi_bridge else block.mode, args.agent or "external",
                 args.model or "", *command]
-    if block.mode == "session" and args.agent == "pi":
+    if pi_bridge:
+        launcher.extend(("--offline", "--no-mcp"))
+        if args.model:
+            launcher.extend(("--model", args.model))
         module = {"maze": "maze.pi", "adnd_expedition": "adnd_expedition.pi"}[block.family]
         launcher = [sys.executable, "-m", f"spatial_harness_bench.{module}", "--", *launcher]
     return [*runner, "--", *launcher]
@@ -154,7 +158,7 @@ def summary(output, returncode, agent=None):
     maximum = score.get("max_score")
     if report.get("task", "").startswith("02-maze-") and "suite" not in report:
         value, maximum = int(report.get("status") == "solved"), 1
-    if "technical_errors" in report and agent in {"codex", "opencode"}:
+    if "technical_errors" in report and agent in {"codex", "opencode", "pi"}:
         from . import suite_native
         for row in report.get("items", []):
             log = output / row["artifacts"] / "stdout.log"
@@ -174,7 +178,7 @@ def main(argv=None):
     selection.add_argument("--all", action="store_true")
     selection.add_argument("--select", metavar="FAMILY[,BLOCK…]")
     parser.add_argument("--agent", choices=("codex", "opencode", "pi"))
-    parser.add_argument("--model", help="Codex model ID or OpenCode provider/model selector")
+    parser.add_argument("--model", help="model ID or provider/model selector for the native CLI")
     parser.add_argument("--model-label", help="resolved model name when the selector is an alias")
     parser.add_argument("--image", default=os.environ.get("SPATIAL_AGENT_IMAGE"), help="local configured harness image")
     parser.add_argument("--network", default=os.environ.get("SPATIAL_AGENT_NETWORK", "none"))
@@ -192,8 +196,8 @@ def main(argv=None):
         parser.error("specify --model for Codex/OpenCode")
     if args.agent == "opencode" and "/" not in args.model:
         parser.error("OpenCode requires --model PROVIDER/MODEL, as configured in the image")
-    if args.model and args.agent not in {"codex", "opencode"}:
-        parser.error("--model applies only to Codex/OpenCode; configure other models in the image/command")
+    if args.model and not args.agent:
+        parser.error("for an external command, select its model in the command itself")
     if args.seed is not None and not 0 <= args.seed < 2**62:
         parser.error("--seed must be in [0, 2^62)")
     if not 0 < args.timeout < float("inf"):
@@ -205,10 +209,7 @@ def main(argv=None):
     try:
         blocks = select(args.select, catalog())
         for block in blocks:
-            pi_bridge = args.agent == "pi" and block.family in {"maze", "adnd_expedition"}
-            if args.agent == "pi" and not pi_bridge:
-                raise ValueError(f"{block.name} is not supported by the built-in Pi profile (Maze and Expedition only)")
-            if block.mode in {"source", "session"} and args.agent not in {"codex", "opencode"} and not pi_bridge:
+            if block.mode in {"source", "session"} and not args.agent:
                 raise ValueError(f"{block.name} needs a {block.mode} transport; the selected CLI has none")
         command = [args.agent] if args.agent else args.command
         if args.dry_run:

@@ -6,6 +6,7 @@ import secrets
 import socket
 import subprocess
 import sys
+from selectors import EVENT_READ, DefaultSelector
 from time import monotonic, sleep
 
 
@@ -58,7 +59,11 @@ def events(data):
 
 
 def event_failure(records):
-    return any(e.get("type") in {"error", "session.error", "turn.failed"} for e in records)
+    return any(
+        e.get("type") in {"error", "session.error", "turn.failed"} or
+        (e.get("type") == "message_end" and e.get("message", {}).get("stopReason") in {"error", "aborted"})
+        for e in records
+    )
 
 
 def parse_turn(agent, result, requested_id):
@@ -191,9 +196,82 @@ class Native:
         return text
 
 
+def pi_flags(model):
+    flags = ["--offline", "--no-session", "--no-context-files", "--no-extensions", "--no-skills",
+             "--no-prompt-templates", "--no-themes", "--no-mcp"]
+    if model:
+        flags += ["--model", model]
+    return flags
+
+
+class Pi:
+    """One stock Pi RPC process per SVG stage or Memory episode."""
+
+    def __init__(self, model, command, timeout):
+        self.model, self.command, self.timeout = model, command, timeout
+        self.process = None
+        self.buffer = bytearray()
+
+    def close(self):
+        if self.process is None:
+            return
+        if self.process.poll() is None:
+            self.process.terminate()
+            try:
+                self.process.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                self.process.kill()
+                self.process.wait()
+        self.process.stdin.close()
+        self.process.stdout.close()
+
+    def read_event(self, ready, deadline):
+        while True:
+            if b"\n" in self.buffer:
+                line, _, rest = self.buffer.partition(b"\n")
+                self.buffer = rest
+                return json.loads(line, object_pairs_hook=strict_pairs)
+            remaining = deadline - monotonic()
+            if remaining <= 0 or not ready.select(remaining):
+                raise subprocess.TimeoutExpired(self.command, self.timeout)
+            chunk = os.read(self.process.stdout.fileno(), 65536)
+            if not chunk or len(self.buffer) + len(chunk) > 16 * 1024 * 1024:
+                raise TransportError
+            self.buffer.extend(chunk)
+
+    def turn(self, prompt, *, ephemeral=False):
+        if self.process is None:
+            self.process = subprocess.Popen(
+                [*self.command, *pi_flags(self.model), "--mode", "rpc", "--no-tools"],
+                stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+            )
+        packet = json.dumps({"type": "prompt", "message": prompt}, ensure_ascii=False).encode() + b"\n"
+        self.process.stdin.write(packet)
+        self.process.stdin.flush()
+        deadline = monotonic() + self.timeout
+        message = None
+        with DefaultSelector() as ready:
+            ready.register(self.process.stdout, EVENT_READ)
+            while True:
+                event = self.read_event(ready, deadline)
+                kind = event.get("type")
+                if kind == "response" and not event.get("success"):
+                    raise TransportError
+                if kind == "message_end" and event.get("message", {}).get("role") == "assistant":
+                    message = event["message"]
+                    if message.get("stopReason") in {"error", "aborted"}:
+                        raise ProviderError
+                    if any(block.get("type") == "toolCall" for block in message["content"]):
+                        raise ToolViolation
+                if kind == "agent_end":
+                    if message is None:
+                        raise TransportError
+                    return "".join(block["text"] for block in message["content"] if block.get("type") == "text")
+
+
 def main():
     mode, agent, model, seconds, *command = sys.argv[1:]
-    transport = Native(agent, model, command, float(seconds))
+    transport = Pi(model, command, float(seconds)) if agent == "pi" else Native(agent, model, command, float(seconds))
     try:
         if mode == "source":
             print(transport.turn(sys.stdin.read(), ephemeral=True))

@@ -106,6 +106,20 @@ for line in sys.stdin:
             self.assertEqual(collect([f'model={Path(tmp)/"gateway"}'])[('model',f'adnd-memory-road-{VERSION}-easy-full','-')].errors, 1)
             self.assertFalse((Path(tmp)/'invalid'/'private-run.json').exists())
 
+    def test_unwrapped_action_has_diagnostic_without_raw_output(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            for raw, code in (
+                ('{"type":"move","direction":"forward"}', 'invalid_action_envelope'),
+                ('not-json-private-token', 'invalid_json'),
+            ):
+                with self.subTest(code=code):
+                    output = Path(tmp) / code
+                    result = run([sys.executable, '-c', f'input(); print({raw!r}, flush=True)'],
+                                 output, seed='dev', level='easy')
+                    self.assertEqual((result['status'], result['reason'], result['adapter_error'], result['score']),
+                                     ('error', 'harness', code, None))
+                    self.assertNotIn(raw, (output / 'result.json').read_text())
+
     def test_timeout_and_output_limit_are_technical(self):
         with tempfile.TemporaryDirectory() as tmp:
             result = run([sys.executable, '-c', 'import time; time.sleep(60)'], Path(tmp)/'timeout',

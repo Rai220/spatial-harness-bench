@@ -5,7 +5,7 @@
   "display_model": "GigaChat-4",
   "harness": "Pi",
   "harness_version": "0.73.1 / 1.6.0",
-  "provider_label": "OpenRouter",
+  "provider_label": null,
   "benchmark_source_commit": "a4ffe86be6db24819b9b446f39f2f3a1e6b40c7c",
   "benchmark_package_sha256": "9544c64407f7b42e24d327010b291c336b929fa00281c7fc8d12daf57d370820",
   "drawing_seed": "3170149012674641413",

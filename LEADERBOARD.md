@@ -11,7 +11,7 @@
 | 3 | DeepSeek V4.1 Flash | Claude Code 2.1.278 · OpenRouter | 87,45 |
 | 4 | Astra 6 | Claude Code 2.1.278 · OpenRouter | 84,60 |
 | 5 | Sonnet 5.5 | Claude Code 2.1.278 · OpenRouter | 62,84 |
-| 6 | GigaChat-4 | Pi 0.73.1 / 1.6.0 · OpenRouter | 54,64 |
+| 6 | GigaChat-4 | Pi 0.73.1 / 1.6.0 | 54,64 |
 | 7 | Haiku 5.5 | Claude Code 2.1.278 · OpenRouter | 51,79 |
 
 [Поэтажные планы](README.md#building) · [Задачи AD&DBench](README.md#adnd)

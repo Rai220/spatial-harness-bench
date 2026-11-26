@@ -80,7 +80,9 @@ def table(rows):
                 "| ---: | --- | --- | ---: |"]
     for place, run in rows:
         label = run["display_model"]
-        harness = f'{run["harness"]} {run["harness_version"]} · {run["provider_label"]}'
+        harness = f'{run["harness"]} {run["harness_version"]}'
+        if provider := run.get("provider_label"):
+            harness += f" · {provider}"
         value = run["overall_score"]
         score = f"{value:.2f}".replace(".", ",")
         html_label = escape(label)

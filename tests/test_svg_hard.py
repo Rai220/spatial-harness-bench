@@ -134,26 +134,29 @@ class TestSvgHard(unittest.TestCase):
             self.assertEqual(image.getpixel((256*c + 128, 256*r + 128)), want)
 
     def test_origin_scores_names_are_reported_and_penalty_applies_once(self):
-        board, questions = hard.make_questions(37)
-        rows = []
-        for q in questions:
-            r, c = hard.coordinates(q.origin)
-            rows.append(f"{r},{c} | {NAMES[board[q.origin]]}")
-        issues = [None] * 10
+        # Four occupied cells and expected responses are literal, not taken
+        # from the same generated Question.origin that the grader reads.
+        board = [None, 1, None, None,
+                 2, None, None, None,
+                 None, None, 3, None,
+                 None, None, None, 0]
+        questions = [hard.Question(origin, end, ()) for origin, end in ((1, 3), (4, 7), (10, 9), (15, 12))]
+        names = ["кошка", "зонт", "маяк", "улитка"]
+        rows = ["1,2 | зонт", "2,1 | маяк", "3,3 | улитка", "4,4 | кот"]
+        issues = [None] * len(names)
+
         def score():
-            return hard.grade(board, questions, NAMES, issues, "\n".join(rows).encode())
-        self.assertEqual(score()["score"], 10)
-        rows[0] = rows[0].split("|")[0] + "| другой предмет"
-        rows[1] = "0,0 |" + rows[1].split("|")[1]
-        issues[board[questions[2].origin]] = verifier.DrawingIssue("caption", "подпись")
-        # Q1 has the right cell and a wrong name (1 point), Q2 the reverse (0), Q3 a caption (−1).
+            return hard.grade(board, questions, names, issues, "\n".join(rows).encode())
+
+        self.assertEqual((score()["score"], score()["full_hits"]), (4, 4))
+        rows[0] = "1,2 | другой предмет"
+        rows[1] = "0,0 | маяк"
+        issues[3] = verifier.DrawingIssue("caption", "подпись")
+        # Q1 correct cell (+1); Q2 only correct name (0); Q3 caption (−1);
+        # Q4 correct cell and accepted synonym (+1).
         self.assertEqual((score()["score"], score()["origin_hits"], score()["name_hits"], score()["full_hits"]),
-                         (7, 8, 8, 7))
-        cat = next(i for i, q in enumerate(questions) if NAMES[board[q.origin]] == "кошка")
-        if cat > 2:  # a synonym still counts as a correct name
-            rows[cat] = rows[cat].split("|")[0] + "| Кот"
-            self.assertEqual(score()["name_hits"], 8)
-        self.assertEqual(hard.grade(board, questions, NAMES, issues, b"")["score"], 0)
+                         (1, 2, 2, 1))
+        self.assertEqual(hard.grade(board, questions, names, issues, b"")["score"], 0)
 
     def test_replay_passes_only_one_modality_and_public_questions(self):
         with TemporaryDirectory() as tmp:

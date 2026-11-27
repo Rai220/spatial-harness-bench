@@ -1,8 +1,10 @@
 import contextlib
 import io
+from itertools import permutations
 import json
 import os
 from pathlib import Path
+import statistics
 import subprocess
 import sys
 from tempfile import TemporaryDirectory
@@ -15,13 +17,65 @@ from spatial_harness_bench.gateway import GatewayError
 from spatial_harness_bench.maze import MAX_RESPONSES_PER_MOVE
 from spatial_harness_bench.maze.__main__ import run
 from spatial_harness_bench.maze.game import CLOSED, DIRECTIONS, Maze, OPEN, WALL, Walk
-from spatial_harness_bench.maze.levels import (LEVELS, LOOPS, dfs_steps, explore_cost, generate_level,
-                                               wall_followers_fail)
+from spatial_harness_bench.maze.levels import LEVELS, LOOPS, generate_level
 from spatial_harness_bench.maze.pi import MoveResponseLimit, read_move
 
 
 def open_edges(maze):
     return sum(state == OPEN for doors in maze.rooms for state in doors) // 2
+
+
+def public_graph(maze):
+    """Read the four door entries without using the maze navigator."""
+    n = maze.size
+    step = (-n, 1, n, -1)
+    return [{d: cell + step[d] for d, door in enumerate(doors) if door == OPEN}
+            for cell, doors in enumerate(maze.rooms)]
+
+
+def shortest_oracle(graph, start, goal):
+    reached, frontier = set(), {start}
+    for distance in range(len(graph)):
+        if goal in frontier:
+            return distance
+        reached.update(frontier)
+        frontier = {neighbor for room in frontier for neighbor in graph[room].values()} - reached
+    raise AssertionError("exit unreachable")
+
+
+def explore_oracle(graph, start, goal, order):
+    visited, route = set(), []
+
+    def visit(room):
+        visited.add(room)
+        route.append(room)
+        if room == goal:
+            return True
+        for direction in order:
+            neighbor = graph[room].get(direction)
+            if neighbor is not None and neighbor not in visited:
+                if visit(neighbor):
+                    return True
+                route.append(room)
+        return False
+
+    assert visit(start)
+    return len(route) - 1
+
+
+def wall_oracle(graph, start, goal, heading, hand, limit):
+    room = start
+    for _ in range(limit):
+        # Rotate candidate headings into right/left, ahead, other side, back.
+        headings = [(heading + delta) % 4 for delta in (hand, 0, -hand, 2)]
+        choices = [d for d in headings if d in graph[room]]
+        if not choices:
+            return False
+        heading = choices[0]
+        room = graph[room][heading]
+        if room == goal:
+            return True
+    return False
 
 
 class TestMaze(unittest.TestCase):
@@ -197,7 +251,9 @@ for line in sys.stdin:
                 self.assertEqual(result["task"], f"02-maze-v2-{number:02d}")
                 self.assertEqual(result, json.loads((folder / "result.json").read_text()))
                 maze = Maze.generate(result["size"], result["seed"], LOOPS)
-                self.assertEqual(result["attempts"], dfs_steps(maze, (0, 1, 2, 3)))
+                graph = public_graph(maze)
+                self.assertEqual(result["attempts"], explore_oracle(graph, maze.start, maze.exit, (0, 1, 2, 3)))
+                self.assertEqual(result["shortest"], shortest_oracle(graph, maze.start, maze.exit))
                 self.assertEqual(result["efficiency"], round(result["shortest"] / result["attempts"], 4))
                 self.assertEqual(result["limit"], 2 * result["size"]**2)
             single = root / "level-05"
@@ -220,15 +276,19 @@ for line in sys.stdin:
             maze, map_seed, cost = generate_level(number, 123)
             self.assertEqual(maze, Maze.generate(level.size, map_seed, LOOPS))
             self.assertEqual((maze, map_seed, cost), generate_level(number, 123))
-            self.assertLessEqual(level.shortest[0], maze.shortest_distance())
-            self.assertLessEqual(maze.shortest_distance(), level.shortest[1])
-            self.assertEqual(cost, explore_cost(maze))
+            graph = public_graph(maze)
+            shortest = shortest_oracle(graph, maze.start, maze.exit)
+            self.assertEqual(maze.shortest_distance(), shortest)
+            self.assertLessEqual(level.shortest[0], shortest)
+            self.assertLessEqual(shortest, level.shortest[1])
+            routes = [explore_oracle(graph, maze.start, maze.exit, o) for o in permutations(range(4))]
+            self.assertEqual(cost, int(statistics.median(routes)))
             self.assertLessEqual(level.explore[0], cost)
             self.assertLessEqual(cost, level.explore[1])
-            self.assertTrue(wall_followers_fail(maze, 2 * level.size**2))
+            self.assertFalse(any(wall_oracle(graph, maze.start, maze.exit, h, side, 2 * level.size**2)
+                                 for h in range(4) for side in (-1, 1)))
             # Exploration with memory always fits the decision limit.
-            self.assertLessEqual(max(dfs_steps(maze, o) for o in ((0, 1, 2, 3), (3, 2, 1, 0))),
-                                 2 * level.size**2)
+            self.assertLessEqual(max(routes), 2 * level.size**2)
 
     def test_suite_distinguishes_limits_from_adapter_errors(self):
         with TemporaryDirectory() as tmp:

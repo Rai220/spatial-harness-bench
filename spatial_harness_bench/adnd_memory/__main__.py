@@ -25,6 +25,10 @@ MAX_RESPONSES_PER_TURN = 32
 MAX_PROTOCOL_LINE = 1_048_576
 
 
+class AdapterProtocolError(RuntimeError):
+    """A stable wire error code without untrusted output or private game data."""
+
+
 def _write_line(stream, value, timeout):
     """Bound the entire write, including an adapter that never reads stdin."""
     data = (json.dumps(value, ensure_ascii=False) + '\n').encode('utf8')
@@ -54,7 +58,7 @@ class _LineReader:
         deadline = monotonic() + timeout
         while b'\n' not in self.buffer:
             if len(self.buffer) > MAX_PROTOCOL_LINE:
-                raise RuntimeError('adapter line exceeds limit')
+                raise AdapterProtocolError('line_too_long')
             remaining = deadline - monotonic()
             if remaining <= 0 or not select.select([self.fd], [], [], remaining)[0]:
                 raise TimeoutError('adapter read timed out')
@@ -64,16 +68,16 @@ class _LineReader:
                 continue
             if not data:
                 if self.buffer:
-                    raise RuntimeError('adapter emitted incomplete line')
+                    raise AdapterProtocolError('incomplete_line')
                 return ''
             self.buffer += data
         line, self.buffer = self.buffer.split(b'\n', 1)
         if len(line) > MAX_PROTOCOL_LINE:
-            raise RuntimeError('adapter line exceeds limit')
+            raise AdapterProtocolError('line_too_long')
         try:
             return line.decode('utf8')
         except UnicodeDecodeError:
-            raise RuntimeError('adapter output is not UTF-8') from None
+            raise AdapterProtocolError('invalid_utf8') from None
 
 
 def _write_private(path, value):
@@ -105,23 +109,23 @@ def _attempt(seed, level, policy, window_turns, command, io_timeout):
                     agent.wait(timeout=min(5, io_timeout))
                     if gateway_failure(agent.returncode, tail(stderr)):
                         raise GatewayError('inference gateway failed')
-                    raise RuntimeError('adapter closed stdin') from None
+                    raise AdapterProtocolError('stdin_closed') from None
                 line = reader.read(io_timeout)
                 if not line:
                     # The adapter ended early; gateway errors retain their separate status.
                     try:
                         agent.wait(timeout=min(5, io_timeout))
                     except subprocess.TimeoutExpired:
-                        raise RuntimeError('adapter closed stdout') from None
+                        raise AdapterProtocolError('stdout_closed') from None
                     if gateway_failure(agent.returncode, tail(stderr)):
                         raise GatewayError('inference gateway failed')
-                    raise RuntimeError('adapter ended before episode')
+                    raise AdapterProtocolError('early_exit')
                 try:
                     response = json.loads(line)
                 except ValueError:
                     # A model's invalid action consumes a game turn; malformed
                     # wire protocol itself is an adapter error, not a game loss.
-                    raise RuntimeError('invalid adapter protocol') from None
+                    raise AdapterProtocolError('invalid_json') from None
                 if isinstance(response, dict) and response.get('type') == 'gateway_error':
                     failure = GatewayError('inference gateway failed')
                     if response.get('exhausted') is True:
@@ -135,11 +139,11 @@ def _attempt(seed, level, policy, window_turns, command, io_timeout):
                             'turns': game.turn, 'invalid_actions': game.invalid_actions}, trace
                 if isinstance(response, dict) and response.get('type') == 'response_limit':
                     if response.get('responses') != MAX_RESPONSES_PER_TURN:
-                        raise RuntimeError('invalid response limit event')
+                        raise AdapterProtocolError('invalid_response_limit')
                     return {'status': 'limit', 'reason': 'response_limit', 'score': 0,
                             'turns': game.turn, 'invalid_actions': game.invalid_actions}, trace
                 if not isinstance(response, dict) or set(response) != {'action'}:
-                    raise RuntimeError('invalid adapter protocol')
+                    raise AdapterProtocolError('invalid_action_envelope')
                 action = response['action']
                 after = game.step(action)
                 trace.append({'observation': observation, 'action': action, 'next_observation': after})
@@ -149,9 +153,9 @@ def _attempt(seed, level, policy, window_turns, command, io_timeout):
                 if agent.wait(timeout=min(15, io_timeout)):
                     if gateway_failure(agent.returncode, tail(stderr)):
                         raise GatewayError('inference gateway failed')
-                    raise RuntimeError('adapter failed after episode')
+                    raise AdapterProtocolError('shutdown_failed')
             except BrokenPipeError:
-                raise RuntimeError('adapter closed before episode end') from None
+                raise AdapterProtocolError('shutdown_pipe_closed') from None
             outcome = game.result()
             return {'status': outcome['terminal_reason'], 'reason': None,
                     'score': int(outcome['completed']), 'turns': outcome['turns'],
@@ -192,6 +196,9 @@ def run(command, output, *, seed, level='medium', policy='full', window_turns=4,
                          'gateway_attempts': exc.attempts}, []
     except (TimeoutError, subprocess.TimeoutExpired):
         result, trace = {'status': 'error', 'reason': 'timeout', 'score': None}, []
+    except AdapterProtocolError as exc:
+        result, trace = {'status': 'error', 'reason': 'harness',
+                         'adapter_error': str(exc), 'score': None}, []
     except (OSError, ValueError, RuntimeError, subprocess.SubprocessError):
         result, trace = {'status': 'error', 'reason': 'harness', 'score': None}, []
     outcome = result.pop('status')
